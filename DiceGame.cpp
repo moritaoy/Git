@@ -10,5 +10,8 @@ int main(){
   cout<<"Die 1: "<<x<<endl;
   cout<<"Die 2: "<<y<<endl;
   cout<<"Total value: "<<x+y<<endl;
+
+  if(x+y>7) cout<<s<<" won!"<<endl;
+  else cout<<s<<" lose."<<endl;
   return 0;
 }
