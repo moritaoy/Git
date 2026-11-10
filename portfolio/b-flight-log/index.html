@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Morita Flight Log</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one centred log column climbing through a fixed sky canvas; dark-glass instruments (HUD) float at the edges, light paper panels carry every word. */
+:root {
+  --sky-low: #e9f6fc;            /* body fallback: sky near the ground */
+  --sky-ink: #0b2545;            /* text set directly on the pale morning sky */
+  --sky-ink-soft: #2f4d6e;
+  --ink: #10233f;                /* text on panels */
+  --ink-soft: #4a6079;
+  --panel: rgba(250, 253, 255, 0.95);
+  --panel-line: rgba(16, 35, 63, 0.13);
+  --panel-shade: rgba(6, 22, 52, 0.16);
+  --rule: rgba(16, 35, 63, 0.10);
+  --glass: rgba(7, 22, 48, 0.80);  /* instrument surfaces */
+  --glass-line: rgba(160, 215, 255, 0.26);
+  --hud: #eaf6ff;
+  --hud-dim: #a3c4dc;
+  --cyan: #7fd6ff;
+  --accent: #0a62c2;             /* links and passed markers on panels */
+  --accent-wash: rgba(10, 98, 194, 0.08);
+  --amber: #ffc857;              /* live / cruising state on glass */
+  --amber-ink: #8a5600;          /* same state on panels */
+  --amber-wash: rgba(255, 200, 87, 0.22);
+  --white: #ffffff;
+  --avatar-top: #2f8fe0;
+  --avatar-bottom: #bfe4fa;
+  --font-hud: "Saira Condensed", "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+  --col: 860px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--sky-low);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-x: hidden;
+}
+h1, h2, h3, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.num { font-family: var(--font-hud); font-variant-numeric: tabular-nums; }
+
+#sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+
+/* ---------- top bar HUD (phones, tablets, small laptops) ---------- */
+.bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  background: var(--glass);
+  border-bottom: 1px solid var(--glass-line);
+  color: var(--hud);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.bar-row {
+  height: 44px; display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-hud); font-size: 15px; letter-spacing: 0.08em;
+}
+.bar-call { font-weight: 600; color: var(--cyan); flex: none; }
+.bar-leg { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-hud), var(--font-body); }
+.bar-alt { flex: none; font-variant-numeric: tabular-nums; }
+.bar-alt b { font-weight: 600; font-size: 17px; display: inline-block; min-width: 3.3em; text-align: right; }
+.bar-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
+.bar-progress i { display: block; height: 100%; width: 100%; background: var(--cyan); transform-origin: 0 50%; transform: scaleX(0); }
+
+/* ---------- desktop HUD: flight plan (left) ---------- */
+.hud {
+  display: none;
+  position: fixed; z-index: 30; top: 24px; left: 24px; width: 204px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  color: var(--hud);
+  padding: 16px 16px 12px;
+  font-family: var(--font-hud);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.hud::before, .hud::after, .tape::before, .tape::after {
+  content: ""; position: absolute; width: 10px; height: 10px; border: 1px solid var(--cyan);
+}
+.hud::before, .tape::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.hud::after, .tape::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.hud-call { font-size: 26px; font-weight: 600; letter-spacing: 0.14em; line-height: 1; color: var(--white); }
+.hud-sub { font-size: 12px; letter-spacing: 0.22em; color: var(--hud-dim); margin-top: 6px; }
+.hud-now { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--glass-line); }
+.hud-label { font-size: 11px; letter-spacing: 0.22em; color: var(--hud-dim); display: flex; align-items: center; gap: 6px; }
+.hud-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--hud-dim); }
+.is-airborne .hud-label::before { background: var(--amber); animation: blink 1.6s steps(2, start) infinite; }
+.hud-leg { font-size: 17px; font-weight: 500; letter-spacing: 0.03em; line-height: 1.35; margin-top: 2px; font-family: var(--font-hud), var(--font-body); min-height: 2.6em; }
+.hud-legs { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--glass-line); position: relative; }
+.hud-legs a {
+  display: flex; align-items: center; gap: 10px; min-height: 26px;
+  color: var(--hud-dim); text-decoration: none; font-size: 14px; letter-spacing: 0.1em;
+}
+.hud-legs a::before { content: ""; flex: none; width: 7px; height: 7px; border: 1px solid var(--hud-dim); transform: rotate(45deg); }
+.hud-legs a:hover { color: var(--white); }
+.hud-legs a.done::before { background: var(--cyan); border-color: var(--cyan); }
+.hud-legs a.now { color: var(--white); }
+.hud-legs a.now::before { background: var(--amber); border-color: var(--amber); }
+
+/* ---------- desktop HUD: altimeter tape (right) ---------- */
+.tape {
+  display: none;
+  position: fixed; z-index: 30; right: 24px; top: 50%; transform: translateY(-50%);
+  width: 86px; height: 372px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  color: var(--hud);
+  font-family: var(--font-hud);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.tape canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.tape-cap { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; letter-spacing: 0.24em; color: var(--hud-dim); background: var(--glass); padding: 3px 0; }
+.tape-cap.top { top: 0; border-bottom: 1px solid var(--glass-line); }
+.tape-cap.bottom { bottom: 0; border-top: 1px solid var(--glass-line); }
+.tape-read {
+  position: absolute; left: -9px; right: -9px; top: 50%; transform: translateY(-50%);
+  background: #061630; border: 1px solid var(--cyan);
+  text-align: center; font-size: 24px; font-weight: 600; line-height: 38px; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums; color: var(--white);
+}
+
+/* HUD power states */
+.bar, .hud, .tape { transition: opacity 0.5s ease; }
+.is-standby .hud, .is-standby .tape { opacity: 0.9; }
+.ignite .hud, .ignite .tape, .ignite .bar { animation: ignite 0.9s ease-out 1; }
+.scan {
+  position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 40; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+}
+.ignite .scan { animation: scan 0.9s ease-in 1; }
+@keyframes ignite { 0% { filter: brightness(2.4); } 30% { filter: brightness(0.8); } 55% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
+@keyframes scan { 0% { opacity: 0.9; transform: translateY(0); } 100% { opacity: 0; transform: translateY(100vh); } }
+@keyframes blink { to { visibility: hidden; } }
+
+/* ---------- page column ---------- */
+.wrap {
+  position: relative; z-index: 10;
+  max-width: var(--col); margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+section { scroll-margin-top: 64px; }
+
+/* ---------- hero: before take-off ---------- */
+.hero {
+  min-height: 80svh;
+  padding-block: 92px 56px;
+  display: flex; flex-direction: column; justify-content: center; gap: 28px;
+  color: var(--sky-ink);
+}
+.hero-id { display: flex; align-items: center; gap: 20px; }
+.avatar {
+  flex: none; width: 84px; height: 84px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 72%, var(--white) 0 13%, transparent 14%),
+    radial-gradient(circle at 44% 66%, var(--white) 0 17%, transparent 18%),
+    radial-gradient(circle at 60% 72%, var(--white) 0 14%, transparent 15%),
+    radial-gradient(circle at 74% 34%, rgba(255,255,255,0.85) 0 8%, transparent 9%),
+    radial-gradient(circle at 83% 37%, rgba(255,255,255,0.85) 0 6%, transparent 7%),
+    linear-gradient(180deg, var(--avatar-top), var(--avatar-bottom));
+  border: 3px solid var(--white);
+  box-shadow: 0 6px 22px var(--panel-shade);
+}
+.hero-id-text { min-width: 0; }
+.eyebrow { font-family: var(--font-hud); font-size: 15px; letter-spacing: 0.3em; color: var(--sky-ink-soft); }
+.hero h1 { font-size: clamp(44px, 9vw, 84px); font-weight: 700; line-height: 1.1; letter-spacing: 0.06em; text-wrap: balance; }
+.hero-roman { font-family: var(--font-hud); font-size: clamp(20px, 3.4vw, 28px); letter-spacing: 0.16em; font-weight: 500; line-height: 1.3; }
+.hero-roman span { color: var(--sky-ink-soft); margin-left: 0.6em; }
+.hero-lead { max-width: 34em; font-size: 16px; color: var(--sky-ink); font-weight: 500; }
+.plan {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--panel); border: 1px solid var(--panel-line);
+  box-shadow: 0 10px 30px var(--panel-shade);
+  color: var(--ink);
+}
+.plan div { padding: 12px 16px; min-width: 0; border-left: 1px solid var(--rule); }
+.plan div:first-child { border-left: 0; }
+.plan dt { font-family: var(--font-hud); font-size: 12px; letter-spacing: 0.24em; color: var(--ink-soft); }
+.plan dd { font-size: 15px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 20px; }
+.takeoff {
+  appearance: none; cursor: pointer;
+  min-height: 52px; padding: 0 28px;
+  font-family: var(--font-hud); font-size: 20px; font-weight: 600; letter-spacing: 0.24em;
+  color: var(--white); background: var(--sky-ink);
+  border: 1px solid var(--sky-ink); border-radius: 0;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  transition: background 0.2s, transform 0.2s;
+}
+.takeoff span { display: inline-block; margin-left: 10px; transition: transform 0.2s; }
+.takeoff:hover { background: var(--accent); }
+.takeoff:hover span { transform: translateY(-4px); }
+.takeoff:active { transform: translateY(1px); }
+.hero-hint { font-family: var(--font-hud); font-size: 14px; letter-spacing: 0.18em; color: var(--sky-ink-soft); }
+
+/* ---------- section heads: instrument strips ---------- */
+.sec { padding-block: 44px 28px; }
+.sec-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px;
+  background: var(--glass); border: 1px solid var(--glass-line); border-left: 3px solid var(--cyan);
+  color: var(--hud); padding: 12px 18px; margin-bottom: 20px;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.sec-code { font-family: var(--font-hud); font-size: 15px; letter-spacing: 0.26em; color: var(--cyan); font-weight: 500; }
+.sec-head h2 { font-size: 21px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.4; color: var(--white); }
+.sec-note { font-size: 13px; color: var(--hud-dim); min-width: 0; margin-left: auto; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--panel-line);
+  box-shadow: 0 10px 30px var(--panel-shade);
+  padding: 20px 22px; min-width: 0;
+}
+
+/* ---------- route / waypoints ---------- */
+.route { position: relative; display: flex; flex-direction: column; gap: 20px; }
+.route-line, .route-fill { position: absolute; left: 13px; top: 6px; width: 2px; }
+.route-line { bottom: 6px; background: repeating-linear-gradient(180deg, var(--white) 0 6px, transparent 6px 12px); opacity: 0.9; }
+.route-fill { height: 0; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.wp { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 14px; scroll-margin-top: 64px; }
+.wp-node { position: relative; }
+.wp-mark {
+  position: absolute; left: 5px; top: 22px; width: 18px; height: 18px;
+  background: var(--sky-ink); border: 2px solid var(--white); transform: rotate(45deg);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.wp-mark::after {
+  content: ""; position: absolute; left: 4px; top: 0px; width: 5px; height: 9px;
+  border: solid var(--sky-ink); border-width: 0 2px 2px 0; opacity: 0; transition: opacity 0.3s;
+}
+.wp.passed .wp-mark { background: var(--cyan); box-shadow: 0 0 0 4px rgba(127, 214, 255, 0.3); }
+.wp.passed .wp-mark::after { opacity: 1; }
+.wp.cruise.passed .wp-mark { background: var(--amber); box-shadow: 0 0 0 4px var(--amber-wash); }
+.wp.cruise.passed .wp-mark::after { opacity: 0; }
+.wp-top { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font-family: var(--font-hud); letter-spacing: 0.16em; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.wp-code { font-size: 20px; font-weight: 600; color: var(--ink); }
+.wp-phase { font-size: 14px; color: var(--ink-soft); }
+.wp-when { font-family: var(--font-hud), var(--font-body); font-size: 15px; color: var(--ink-soft); letter-spacing: 0.08em; }
+.wp-state {
+  margin-left: auto; font-size: 13px; font-weight: 600; padding: 1px 10px;
+  border: 1px solid var(--panel-line); color: var(--ink-soft);
+  transition: color 0.3s, background 0.3s, border-color 0.3s;
+}
+.wp-state::before { content: "AHEAD"; }
+.wp.passed .wp-state { color: var(--accent); border-color: var(--accent); background: var(--accent-wash); }
+.wp.passed .wp-state::before { content: "PASSED \2713"; }
+.wp.cruise.passed .wp-state { color: var(--amber-ink); border-color: var(--amber-ink); background: var(--amber-wash); }
+.wp.cruise.passed .wp-state::before { content: "CRUISING"; }
+.wp h3 { font-size: 20px; line-height: 1.5; letter-spacing: 0.02em; text-wrap: balance; }
+.wp-body { margin-top: 6px; color: var(--ink); font-size: 15.5px; max-width: 40em; }
+.wp-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; line-height: 1.7; color: var(--ink); }
+.wp-list li { position: relative; padding-left: 18px; }
+.wp-list li::before { content: ""; position: absolute; left: 2px; top: 0.72em; width: 8px; height: 1px; background: var(--ink-soft); }
+.wp-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; font-size: 14.5px; font-weight: 700; }
+
+/* ---------- instruments ---------- */
+.inst { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; }
+.inst h3 { font-family: var(--font-hud); font-size: 14px; letter-spacing: 0.24em; color: var(--ink-soft); font-weight: 500; margin-bottom: 12px; }
+.dials { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }
+.dial { border: 1px solid var(--panel-line); padding: 10px 12px; min-width: 0; display: flex; flex-direction: column; gap: 2px; position: relative; }
+.dial::before { content: ""; position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.dial b { font-family: var(--font-hud); font-size: 21px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.3; }
+.dial span { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; min-height: 1.5em; overflow-wrap: anywhere; }
+.domains { display: flex; flex-direction: column; }
+.domains li { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--rule); font-weight: 700; font-size: 15.5px; }
+.domains li:first-child { border-top: 0; padding-top: 0; }
+.domains li i { font-family: var(--font-hud); font-style: normal; font-size: 13px; letter-spacing: 0.14em; color: var(--ink-soft); font-weight: 500; flex: none; }
+.inst-note { margin-top: 12px; font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- flight records ---------- */
+.records { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.rec { display: flex; flex-direction: column; gap: 8px; }
+.rec.wide { grid-column: 1 / -1; }
+.rec-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-family: var(--font-hud); font-size: 13px; letter-spacing: 0.2em; color: var(--ink-soft); }
+.rec-tech { color: var(--accent); font-weight: 600; text-align: right; min-width: 0; }
+.rec h3 { font-family: var(--font-hud), var(--font-body); font-size: 25px; font-weight: 600; letter-spacing: 0.04em; line-height: 1.35; overflow-wrap: anywhere; }
+.rec.ja h3 { font-family: var(--font-body); font-size: 19px; font-weight: 700; letter-spacing: 0.02em; }
+.rec p { font-size: 14.5px; line-height: 1.75; }
+.rec a { display: inline-flex; align-items: center; min-height: 44px; margin-top: auto; font-size: 14.5px; font-weight: 700; align-self: flex-start; }
+
+/* ---------- tower ---------- */
+.tower { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tower a {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  min-height: 68px; padding: 12px 18px;
+  background: var(--panel); border: 1px solid var(--panel-line); box-shadow: 0 10px 30px var(--panel-shade);
+  color: var(--ink); text-decoration: none;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.tower a:hover { transform: translateY(-2px); border-color: var(--accent); }
+.tower .ch { font-family: var(--font-hud); font-size: 13px; letter-spacing: 0.2em; color: var(--ink-soft); }
+.tower b { display: block; font-family: var(--font-hud); font-size: 21px; font-weight: 600; letter-spacing: 0.08em; line-height: 1.3; }
+.tower small { display: block; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; overflow-wrap: anywhere; }
+.tower .go { font-family: var(--font-hud); font-size: 18px; color: var(--accent); }
+
+.foot {
+  margin-top: 36px; padding-block: 18px 72px;
+  border-top: 1px solid var(--glass-line);
+  color: var(--hud); font-size: 13px;
+  display: flex; flex-wrap: wrap; gap: 4px 20px; justify-content: space-between;
+}
+.foot .num { letter-spacing: 0.16em; }
+
+.reached {
+  position: fixed; z-index: 30; left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 12px);
+  max-width: calc(100% - 32px); white-space: nowrap;
+  background: var(--glass); border: 1px solid var(--amber); color: var(--amber);
+  font-family: var(--font-hud); font-size: 14px; font-weight: 500; letter-spacing: 0.2em;
+  padding: 8px 16px; opacity: 0; pointer-events: none;
+  transition: opacity 0.5s, transform 0.5s;
+}
+.reached.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- breakpoints ---------- */
+@media (min-width: 1100px) {
+  .tape { display: block; }
+  .bar-alt { display: none; }
+}
+@media (min-width: 1360px) {
+  .hud { display: block; }
+  .bar { display: none; }
+  .hero { padding-top: 64px; }
+}
+@media (max-width: 720px) {
+  body { font-size: 15.5px; }
+  .hero { padding-block: 84px 40px; gap: 22px; }
+  .avatar { width: 64px; height: 64px; }
+  .hero-id { gap: 14px; }
+  .plan { grid-template-columns: minmax(0, 1fr); }
+  .plan div { border-left: 0; border-top: 1px solid var(--rule); padding: 9px 14px; display: flex; align-items: baseline; gap: 12px; }
+  .plan div:first-child { border-top: 0; }
+  .plan dt { flex: none; width: 5.2em; }
+  .sec { padding-block: 32px 20px; }
+  .sec-head { padding: 10px 14px; }
+  .sec-note { margin-left: 0; flex-basis: 100%; }
+  .panel { padding: 16px; }
+  .wp { grid-template-columns: 20px minmax(0, 1fr); gap: 10px; }
+  .route-line, .route-fill { left: 9px; }
+  .wp-mark { left: 2px; width: 16px; height: 16px; }
+  .wp-mark::after { left: 3px; top: -1px; }
+  .wp h3 { font-size: 18px; }
+  .inst, .records, .tower { grid-template-columns: minmax(0, 1fr); }
+  .reached { font-size: 12px; letter-spacing: 0.14em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="scan" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="bar-row">
+    <span class="bar-call">MORITAOY</span>
+    <span class="bar-leg" id="barLeg">PRE-FLIGHT</span>
+    <span class="bar-alt">ALT <b id="barAlt">0</b> FT</span>
+  </div>
+  <div class="bar-progress" aria-hidden="true"><i id="barProg"></i></div>
+</header>
+
+<aside class="hud" aria-label="フライトプラン">
+  <p class="hud-call">MORITAOY</p>
+  <p class="hud-sub">FLIGHT LOG</p>
+  <div class="hud-now">
+    <p class="hud-label" id="hudLabel">STANDBY</p>
+    <p class="hud-leg" id="hudLeg">PRE-FLIGHT</p>
+  </div>
+  <nav class="hud-legs" id="hudLegs" aria-label="ページ内ナビゲーション"></nav>
+</aside>
+
+<div class="tape" aria-hidden="true">
+  <canvas id="tape"></canvas>
+  <span class="tape-cap top">ALT</span>
+  <span class="tape-read" id="tapeRead">0</span>
+  <span class="tape-cap bottom">FEET</span>
+</div>
+
+<main class="wrap" id="app"></main>
+
+<div class="reached" id="reached" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   PROFILE — ここを書き換えるとページ全体に反映されます
+   ===================================================================== */
+const PROFILE = {
+  name: "守田 一喜",
+  roman: "Kazuki Morita",
+  id: "moritaoy",
+  role: "Game Backend Engineer",
+  lead: "ゲームのバックエンドをつくるエンジニアです。競技プログラミングで鍛えた基礎を土台に、運用タイトルのテックリードを経て、いまは新規タイトルの開発に携わっています。",
+  plan: [
+    { k: "CALLSIGN", v: "@moritaoy" },
+    { k: "ROLE", v: "ゲームエンジニア(バックエンド)" },
+    { k: "STATUS", v: "新規タイトルを開発中" }
+  ],
+  waypoints: [
+    {
+      phase: "TAKEOFF", when: "学生時代", nav: "会津大学",
+      title: "会津大学 コンピュータ理工学部",
+      body: "競技プログラミング部に所属し、部長を務めました。大学2年の後半からは個人でのWebアプリ開発も始めています。",
+      list: [
+        "ICPC に出場。AtCoder 最高レートは約1800",
+        "フレームワークとクラウドを組み合わせた個人Webアプリ開発",
+        "自作オンラインジャッジ「SkyJudge」(Python)",
+        "2020年:ビズリーチのインターン、KONICA MINOLTA Hackathon 2020 に参加"
+      ]
+    },
+    {
+      phase: "CLIMB", when: "2022", nav: "入社・配属",
+      title: "サイバーエージェントに新卒入社、サムザップへ配属",
+      body: "『呪術廻戦 ファントムパレード』のバックエンドエンジニアとして、開発と運用を担当しました。",
+      list: []
+    },
+    {
+      phase: "CLIMB", when: "入社1年目", nav: "単独実装",
+      title: "イベント機能のサーバーサイドを一人で担当",
+      body: "イベント機能のサーバーサイド実装に自ら立候補し、一人で担当しました。",
+      list: []
+    },
+    {
+      phase: "CLIMB", when: "2024", nav: "テックリード",
+      title: "バックエンドテックリードに就任、CAGC2024 に登壇",
+      body: "『呪術廻戦 ファントムパレード』のバックエンドテックリードに就任しました。",
+      list: ["CAGC2024 登壇「『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み」"],
+      link: { label: "登壇スライドを見る", url: "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024" }
+    },
+    {
+      phase: "CRUISE", when: "現在", nav: "新規タイトル", cruise: true,
+      title: "新規タイトルの開発に従事",
+      body: "次のタイトルに向けて、開発を進めています。",
+      list: []
+    }
+  ],
+  languages: [
+    { name: "TypeScript", note: "kuromajutsu" },
+    { name: "Python", note: "SkyJudge" },
+    { name: "Go", note: "" },
+    { name: "C++", note: "" },
+    { name: "C#", note: "" },
+    { name: "GDScript", note: "Godot / Mining Dive" },
+    { name: "Vue", note: "tournament_timer" }
+  ],
+  domains: ["ゲームバックエンド", "API設計", "テスト設計", "運用", "AIエージェント活用"],
+  works: [
+    {
+      kind: "TOOL", tech: "TypeScript", name: "kuromajutsu", wide: true,
+      text: "Cursor / Claude のサブエージェントを並列に起動・管理する MCP サーバー。",
+      link: { label: "GitHub で見る", url: "https://github.com/moritaoy/kuromajutsu" }
+    },
+    { kind: "GAME", tech: "Godot / GDScript", name: "Mining Dive", text: "Godot でつくっている個人制作ゲーム。Web で遊べるプレイテスト版があります。" },
+    { kind: "WEB APP", tech: "Vue", name: "tournament_timer", text: "Vue で制作したトーナメント用タイマー。" },
+    { kind: "SYSTEM", tech: "Python", name: "SkyJudge", text: "学生時代に自作したオンラインジャッジ。" },
+    {
+      kind: "ARTICLE", tech: "Qiita", name: "競技プログラミングは就活の役に立つ、が。", ja: true,
+      text: "競技プログラミングと就職活動について書いた記事。",
+      link: { label: "Qiita で読む", url: "https://qiita.com/moritaoy/items/76e66499191077f857cb" }
+    }
+  ],
+  links: [
+    { name: "GitHub", desc: "github.com/moritaoy", url: "https://github.com/moritaoy" },
+    { name: "Qiita", desc: "qiita.com/moritaoy", url: "https://qiita.com/moritaoy" },
+    { name: "Interview", desc: "サイバーエージェント ゲーム事業部 採用サイト", url: "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/" },
+    { name: "Slides", desc: "CAGC2024 登壇資料(Speaker Deck)", url: "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024" }
+  ],
+  footnote: "掲載内容は公開情報をもとにした下書きです"
+};
+
+/* ===================================================================== */
+(function () {
+  "use strict";
+  const CRUISE_FT = 36000; // 演出用の高度。実績値ではありません
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const ext = (l, cls) => `<a ${cls ? `class="${cls}" ` : ""}href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---------- render (synchronous) ---------- */
+  const P = PROFILE;
+  const head = (code, title, note) =>
+    `<header class="sec-head"><span class="sec-code">${code}</span><h2>${title}</h2><span class="sec-note">${note}</span></header>`;
+
+  $("app").innerHTML = `
+  <section class="hero" id="top" data-leg="PRE-FLIGHT" data-nav="PRE-FLIGHT">
+    <div class="hero-id">
+      <div class="avatar" role="img" aria-label="青空のアイコン"></div>
+      <div class="hero-id-text">
+        <p class="eyebrow">FLIGHT LOG / PORTFOLIO</p>
+        <p class="hero-roman">${esc(P.roman)}<span>@${esc(P.id)}</span></p>
+      </div>
+    </div>
+    <h1>${esc(P.name)}</h1>
+    <p class="hero-roman">${esc(P.role)}</p>
+    <p class="hero-lead">${esc(P.lead)}</p>
+    <dl class="plan">${P.plan.map((r) => `<div><dt>${esc(r.k)}</dt><dd>${esc(r.v)}</dd></div>`).join("")}</dl>
+    <div class="hero-actions">
+      <button type="button" class="takeoff" id="takeoff">TAKE OFF<span aria-hidden="true">▲</span></button>
+      <span class="hero-hint">SCROLL TO CLIMB — スクロールで上昇します</span>
+    </div>
+  </section>
+
+  <section class="sec" id="route">
+    ${head("ROUTE", "経歴", "離陸から現在地までの航路")}
+    <ol class="route" id="routeList">
+      <li class="route-line" aria-hidden="true"></li>
+      <li class="route-fill" id="routeFill" aria-hidden="true"></li>
+      ${P.waypoints.map((w, i) => `
+      <li class="wp${w.cruise ? " cruise" : ""}" id="wp${i + 1}" data-leg="WP${pad2(i + 1)} ${esc(w.nav)}" data-nav="WP${pad2(i + 1)}">
+        <div class="wp-node" aria-hidden="true"><span class="wp-mark"></span></div>
+        <article class="panel">
+          <div class="wp-top">
+            <span class="wp-code num">WP${pad2(i + 1)}</span>
+            <span class="wp-phase">${esc(w.phase)}</span>
+            <span class="wp-when num">${esc(w.when)}</span>
+            <span class="wp-state" aria-hidden="true"></span>
+          </div>
+          <h3>${esc(w.title)}</h3>
+          <p class="wp-body">${esc(w.body)}</p>
+          ${w.list.length ? `<ul class="wp-list">${w.list.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+          ${w.link ? ext(w.link, "wp-link") : ""}
+        </article>
+      </li>`).join("")}
+    </ol>
+  </section>
+
+  <section class="sec" id="instruments" data-leg="INSTRUMENTS 搭載計器" data-nav="INSTRUMENTS">
+    ${head("INSTRUMENTS", "スキル", "搭載計器")}
+    <div class="inst">
+      <div class="panel">
+        <h3>LANGUAGES / FRAMEWORKS</h3>
+        <ul class="dials">${P.languages.map((l) => `<li class="dial"><b>${esc(l.name)}</b><span>${esc(l.note)}</span></li>`).join("")}</ul>
+        <p class="inst-note">GitHub の公開リポジトリで使っている技術です。</p>
+      </div>
+      <div class="panel">
+        <h3>DOMAINS</h3>
+        <ul class="domains">${P.domains.map((d, i) => `<li><i class="num">${pad2(i + 1)}</i>${esc(d)}</li>`).join("")}</ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="records" data-leg="FLIGHT RECORDS 個人制作" data-nav="RECORDS">
+    ${head("FLIGHT RECORDS", "個人制作", "業務外でつくったもの、書いたもの")}
+    <div class="records">${P.works.map((w) => `
+      <article class="panel rec${w.wide ? " wide" : ""}${w.ja ? " ja" : ""}">
+        <div class="rec-top"><span>${esc(w.kind)}</span><span class="rec-tech">${esc(w.tech)}</span></div>
+        <h3>${esc(w.name)}</h3>
+        <p>${esc(w.text)}</p>
+        ${w.link ? ext(w.link) : ""}
+      </article>`).join("")}
+    </div>
+  </section>
+
+  <section class="sec" id="tower" data-leg="TOWER 管制塔" data-nav="TOWER">
+    ${head("TOWER", "リンク", "管制塔への連絡先")}
+    <div class="tower">${P.links.map((l, i) => `
+      <a href="${esc(l.url)}" target="_blank" rel="noopener">
+        <span class="ch num">CH ${i + 1}</span>
+        <span><b>${esc(l.name)}</b><small>${esc(l.desc)}</small></span>
+        <span class="go" aria-hidden="true">↗</span>
+      </a>`).join("")}
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="num">© ${esc(P.roman)} / @${esc(P.id)}</span>
+    <span>${esc(P.footnote)}</span>
+  </footer>`;
+
+  /* ---------- HUD wiring ---------- */
+  const root = document.body;
+  const legs = Array.from(document.querySelectorAll("[data-leg]"));
+  const wps = Array.from(document.querySelectorAll(".wp"));
+  const hudLegs = $("hudLegs");
+  hudLegs.innerHTML = legs.map((el) => `<a href="#${el.id}">${esc(el.dataset.nav)}</a>`).join("");
+  const navLinks = Array.from(hudLegs.children);
+  const routeList = $("routeList"), routeFill = $("routeFill");
+  const barLeg = $("barLeg"), barAlt = $("barAlt"), barProg = $("barProg");
+  const hudLeg = $("hudLeg"), hudLabel = $("hudLabel"), tapeRead = $("tapeRead"), reached = $("reached");
+  reached.textContent = "";
+
+  let vw = 0, vh = 0, maxScroll = 1, legTops = [], wpTops = [], routeTop = 0, routeH = 0;
+  let p = 0, altTarget = 0, altShown = 0, legIndex = -1, airborne = null, atTop = null;
+
+  function measure() {
+    vw = window.innerWidth; vh = window.innerHeight;
+    const sy = window.scrollY;
+    maxScroll = Math.max(1, document.documentElement.scrollHeight - vh);
+    legTops = legs.map((el) => el.getBoundingClientRect().top + sy);
+    wpTops = wps.map((el) => el.getBoundingClientRect().top + sy);
+    const r = routeList.getBoundingClientRect();
+    routeTop = r.top + sy; routeH = r.height;
+  }
+
+  function onScroll() {
+    const sy = Math.max(0, window.scrollY);
+    p = Math.min(1, sy / maxScroll);
+    altTarget = Math.round((p * CRUISE_FT) / 10) * 10;
+
+    // current leg
+    const probe = sy + vh * 0.45;
+    let idx = 0;
+    for (let i = 0; i < legTops.length; i++) if (legTops[i] <= probe) idx = i;
+    if (p > 0.995) idx = legs.length - 1;
+    if (idx !== legIndex) {
+      legIndex = idx;
+      const label = legs[idx].dataset.leg;
+      barLeg.textContent = label; hudLeg.textContent = label;
+      navLinks.forEach((a, i) => { a.classList.toggle("now", i === idx); a.classList.toggle("done", i < idx); });
+    }
+
+    // waypoints passed + route fill
+    const pass = sy + vh * 0.62;
+    wps.forEach((el, i) => el.classList.toggle("passed", wpTops[i] + 30 <= pass));
+    routeFill.style.height = Math.max(0, Math.min(routeH - 12, pass - routeTop - 6)) + "px";
+
+    barProg.style.transform = "scaleX(" + p.toFixed(4) + ")";
+
+    const up = sy > 8;
+    if (up !== airborne) {
+      airborne = up;
+      root.classList.toggle("is-airborne", up);
+      root.classList.toggle("is-standby", !up);
+      hudLabel.textContent = up ? "NOW FLYING" : "STANDBY";
+    }
+    const top = p > 0.985;
+    if (top !== atTop) {
+      atTop = top;
+      reached.classList.toggle("on", top);
+      reached.textContent = top ? "CRUISING ALTITUDE REACHED" : "";
+    }
+    if (reduce.matches) { altShown = altTarget; paintAlt(); drawSky(performance.now()); }
+  }
+
+  const fmt = (n) => n.toLocaleString("en-US");
+  let lastAltText = "";
+  function paintAlt() {
+    const v = Math.round(altShown / 10) * 10;
+    const t = fmt(v);
+    if (t !== lastAltText) { lastAltText = t; barAlt.textContent = t; tapeRead.textContent = t; }
+    drawTape(altShown);
+  }
+
+  /* ---------- altimeter tape ---------- */
+  const tapeCv = $("tape"), tctx = tapeCv.getContext("2d");
+  let tW = 0, tH = 0;
+  function sizeTape() {
+    const r = tapeCv.getBoundingClientRect();
+    if (!r.width) { tW = 0; return; }
+    const d = Math.min(2, window.devicePixelRatio || 1);
+    tW = r.width; tH = r.height;
+    tapeCv.width = Math.round(tW * d); tapeCv.height = Math.round(tH * d);
+    tctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function drawTape(alt) {
+    if (!tW) return;
+    const px = 0.1, cy = tH / 2, span = cy / px + 100;
+    tctx.clearRect(0, 0, tW, tH);
+    tctx.font = '500 13px "Saira Condensed", "Arial Narrow", sans-serif';
+    tctx.textBaseline = "middle"; tctx.textAlign = "right";
+    const from = Math.max(0, Math.floor((alt - span) / 100) * 100);
+    for (let a = from; a <= alt + span; a += 100) {
+      const y = cy - (a - alt) * px;
+      const major = a % 500 === 0;
+      tctx.fillStyle = major ? "rgba(234,246,255,0.95)" : "rgba(163,196,220,0.7)";
+      tctx.fillRect(0, Math.round(y), major ? 16 : 8, 1);
+      if (major) tctx.fillText(String(a / 100).padStart(3, "0"), tW - 12, y);
+    }
+    // ground hatch below zero
+    const y0 = cy + alt * px;
+    if (y0 < tH) { tctx.fillStyle = "rgba(255,200,87,0.22)"; tctx.fillRect(0, y0, tW, tH - y0); }
+  }
+
+  /* ---------- sky canvas ---------- */
+  const cv = $("sky"), ctx = cv.getContext("2d");
+  let dpr = 1;
+  function rng(seed) { return function () { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  const rand = rng(20220401);
+
+  // soft cloud sprites
+  function makeCloud(r) {
+    const c = document.createElement("canvas"); c.width = 512; c.height = 256;
+    const g = c.getContext("2d");
+    const n = 11 + Math.floor(r() * 6);
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const x = 90 + t * 332 + (r() - 0.5) * 40;
+      const rad = 46 + Math.sin(t * Math.PI) * 44 + r() * 18;
+      const y = 150 - Math.sin(t * Math.PI) * 30 * r();
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, "rgba(255,255,255,0.95)");
+      gr.addColorStop(0.55, "rgba(255,255,255,0.55)");
+      gr.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+    }
+    // flatten the base a little
+    g.globalCompositeOperation = "destination-out";
+    const fl = g.createLinearGradient(0, 168, 0, 230);
+    fl.addColorStop(0, "rgba(0,0,0,0)"); fl.addColorStop(1, "rgba(0,0,0,1)");
+    g.fillStyle = fl; g.fillRect(0, 168, 512, 88);
+    return c;
+  }
+  const sprites = [makeCloud(rand), makeCloud(rand), makeCloud(rand), makeCloud(rand)];
+  const LAYERS = [
+    { n: 9, speed: 1.5, scale: 0.42, alpha: 0.6, drift: 0.004, depth: 0.25 },
+    { n: 9, speed: 3.2, scale: 0.72, alpha: 0.8, drift: 0.008, depth: 0.6 },
+    { n: 8, speed: 6.0, scale: 1.25, alpha: 0.9, drift: 0.014, depth: 1.0 }
+  ];
+  const clouds = [];
+  LAYERS.forEach((L) => {
+    for (let i = 0; i < L.n; i++) {
+      clouds.push({ L, x: rand(), y0: 0.85 - (i + rand() * 0.8) / L.n * (L.speed * 0.86 + 0.75), s: 0.75 + rand() * 0.6, sp: sprites[Math.floor(rand() * 4)], d: 0.6 + rand() * 0.8 });
+    }
+  });
+  const stars = [];
+  for (let i = 0; i < 130; i++) stars.push({ x: rand(), y: rand() * 0.8, r: 0.5 + rand() * 1.0, ph: rand() * 6.28, sp: 0.4 + rand() * 1.2 });
+
+  const STOPS = [0, 0.35, 0.7, 1];
+  const TOP = [[159, 211, 242], [47, 143, 224], [18, 63, 143], [7, 22, 52]];
+  const BOT = [[233, 246, 252], [159, 212, 245], [79, 155, 224], [31, 79, 156]];
+  function mix(arr, t) {
+    let i = 0; while (i < STOPS.length - 2 && t > STOPS[i + 1]) i++;
+    const k = Math.min(1, Math.max(0, (t - STOPS[i]) / (STOPS[i + 1] - STOPS[i])));
+    const a = arr[i], b = arr[i + 1];
+    return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * k) + "," + Math.round(a[1] + (b[1] - a[1]) * k) + "," + Math.round(a[2] + (b[2] - a[2]) * k) + ")";
+  }
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+  function sizeSky() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  let mx = 0, my = 0, tmx = 0, tmy = 0;
+  function drawSky(now) {
+    const w = vw, h = vh, t = now / 1000;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, mix(TOP, p)); g.addColorStop(1, mix(BOT, p));
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+    // morning sun glow, fades as we climb
+    const sunA = 1 - smooth(0.05, 0.5, p);
+    if (sunA > 0.01) {
+      const sx = w * 0.8 + mx * 6, sy = h * 0.2 + p * h * 0.6, sr = Math.max(w, h) * 0.5;
+      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+      sg.addColorStop(0, "rgba(255,255,255," + (0.85 * sunA).toFixed(3) + ")");
+      sg.addColorStop(0.12, "rgba(255,252,240," + (0.45 * sunA).toFixed(3) + ")");
+      sg.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = sg; ctx.fillRect(0, 0, w, h);
+    }
+
+    // stars
+    const sa = smooth(0.62, 0.97, p);
+    if (sa > 0.01) {
+      ctx.fillStyle = "#ffffff";
+      for (const s of stars) {
+        const tw = reduce.matches ? 0.8 : 0.6 + 0.4 * Math.sin(t * s.sp + s.ph);
+        ctx.globalAlpha = sa * tw * (1 - s.y * 0.9);
+        ctx.beginPath(); ctx.arc(s.x * w + mx * 3, s.y * h + my * 2, s.r, 0, 6.2832); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // flight-level lines sliding past
+    const pxFt = h / 3200, alt = p * CRUISE_FT;
+    const light = p < 0.2;
+    ctx.strokeStyle = light ? "rgba(11,37,69,0.16)" : "rgba(255,255,255,0.2)";
+    ctx.fillStyle = light ? "rgba(11,37,69,0.5)" : "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 1; ctx.setLineDash([2, 7]);
+    ctx.font = '500 13px "Saira Condensed", "Arial Narrow", sans-serif'; ctx.textBaseline = "bottom"; ctx.textAlign = "right";
+    const lo = Math.ceil((alt - h * 0.5 / pxFt) / 2000) * 2000;
+    for (let a = Math.max(2000, lo); a <= alt + h * 0.5 / pxFt; a += 2000) {
+      const y = Math.round(h * 0.5 - (a - alt) * pxFt) + 0.5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      if (w >= 1100) ctx.fillText("FL" + String(a / 100).padStart(3, "0"), w - 132, y - 3);
+    }
+    ctx.setLineDash([]);
+
+    // hills on the horizon at take-off, sinking away
+    const hillY = h - Math.min(150, h * 0.18) + p * h * 5;
+    if (hillY < h + 40) {
+      for (let k = 0; k < 2; k++) {
+        ctx.fillStyle = k ? "rgba(140,190,222,0.85)" : "rgba(176,214,236,0.8)";
+        ctx.beginPath(); ctx.moveTo(0, h + 2);
+        const base = hillY + k * 46 + mx * (k + 1) * 2;
+        for (let x = 0; x <= w + 24; x += 24) {
+          const u = x / Math.max(w, 900);
+          const y = base - (Math.sin(u * 5.1 + k * 2.1) * 26 + Math.sin(u * 11.7 + k) * 10 + Math.max(0, 1 - Math.abs(u - (k ? 0.28 : 0.68)) * 5) * 58);
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w + 24, h + 2); ctx.closePath(); ctx.fill();
+      }
+    }
+
+    // clouds: three parallax layers falling away as altitude grows
+    const thin = 1 - smooth(0.5, 0.9, p) * 0.82;
+    const unit = Math.max(w, 720) * 0.5;
+    for (const c of clouds) {
+      const L = c.L;
+      const sw = unit * L.scale * c.s, sh = sw * 0.5;
+      const y = (c.y0 + p * L.speed) * h - sh * 0.5 + my * L.depth * 10;
+      if (y > h || y + sh < 0) continue;
+      const span = w + sw;
+      let x = ((c.x + (reduce.matches ? 0 : t * L.drift * c.d)) % 1) * span - sw + mx * L.depth * 18;
+      ctx.globalAlpha = L.alpha * thin;
+      ctx.drawImage(c.sp, x, y, sw, sh);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- loop ---------- */
+  let raf = 0, running = false;
+  function tick(now) {
+    raf = requestAnimationFrame(tick);
+    mx += (tmx - mx) * 0.06; my += (tmy - my) * 0.06;
+    const diff = altTarget - altShown;
+    altShown = Math.abs(diff) < 6 ? altTarget : altShown + diff * 0.14;
+    paintAlt();
+    drawSky(now);
+  }
+  function start() { if (running || reduce.matches || document.hidden) return; running = true; raf = requestAnimationFrame(tick); }
+  function stop() { running = false; cancelAnimationFrame(raf); }
+
+  function onResize() {
+    measure(); sizeSky(); sizeTape();
+    legIndex = -1; onScroll();
+    altShown = altTarget; paintAlt(); drawSky(performance.now());
+  }
+
+  let scrollQueued = false;
+  window.addEventListener("scroll", () => {
+    if (scrollQueued) return; scrollQueued = true;
+    requestAnimationFrame(() => { scrollQueued = false; onScroll(); });
+  }, { passive: true });
+  let rz = 0;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(onResize, 120); });
+  window.addEventListener("load", onResize);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(onResize);
+  document.addEventListener("visibilitychange", () => { document.hidden ? stop() : start(); });
+  const onMotion = () => { stop(); start(); onResize(); };
+  if (reduce.addEventListener) reduce.addEventListener("change", onMotion);
+
+  // pointer / touch parallax
+  const aim = (x, y) => { tmx = (x / vw - 0.5) * -2; tmy = (y / vh - 0.5) * -2; };
+  window.addEventListener("pointermove", (e) => { if (!reduce.matches) aim(e.clientX, e.clientY); }, { passive: true });
+  window.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t && !reduce.matches) aim(t.clientX, t.clientY); }, { passive: true });
+
+  // take off
+  $("takeoff").addEventListener("click", () => {
+    root.classList.remove("ignite"); void root.offsetWidth; root.classList.add("ignite");
+    setTimeout(() => root.classList.remove("ignite"), 1000);
+    $("route").scrollIntoView({ behavior: reduce.matches ? "auto" : "smooth", block: "start" });
+  });
+
+  onResize();
+  start();
+})();
+</script>
+</body>
+</html>
