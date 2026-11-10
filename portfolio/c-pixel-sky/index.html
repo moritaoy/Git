@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>moritaoy Pixel Sky</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 固定HUDバー → 名前+ドット絵ミニゲームのヒーロー → 会話ウィンドウ → 「左に見出し / 右に中身」のSTAGEが縦に並ぶ */
+:root {
+  --sky-1: #2c66c4;        /* 空のいちばん高いところ */
+  --sky-2: #4a8be0;
+  --sky-3: #76b2ef;
+  --sky-4: #a8d3f7;
+  --sky-5: #d9edfc;        /* ページ地色 */
+  --cloud: #ffffff;
+  --cloud-shade: #c9e0f4;
+  --ink: #14264a;          /* 紺: 文字と枠 */
+  --ink-soft: #4a6288;
+  --ink-shadow: rgba(20, 38, 74, 0.16);
+  --sun: #ffd23f;          /* アクセントは太陽の黄だけ */
+  --sun-deep: #e79f12;
+  --sun-pale: #fff0a8;
+  --font-dot: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --px: 3px;               /* ドット枠の太さ */
+  --bar-h: 48px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--sky-5);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.8;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+a { color: var(--ink); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, canvas:focus-visible {
+  outline: 3px solid var(--sun-deep);
+  outline-offset: 3px;
+}
+.dot { font-family: var(--font-dot); font-weight: 400; letter-spacing: 0.04em; }
+svg.px { display: block; shape-rendering: crispEdges; }
+.pN { fill: var(--ink); } .pW { fill: var(--cloud); } .pS { fill: var(--cloud-shade); }
+.pB { fill: var(--sky-2); } .pC { fill: var(--sky-3); } .pA { fill: var(--sky-4); }
+.pY { fill: var(--sun); } .pD { fill: var(--sun-deep); }
+
+/* ドット枠: 四辺を box-shadow で描き、角を1ドット欠けさせる */
+.frame {
+  background: var(--cloud);
+  margin: var(--px);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--ink),
+    0 var(--px) 0 0 var(--ink),
+    calc(var(--px) * -1) 0 0 0 var(--ink),
+    var(--px) 0 0 0 var(--ink),
+    calc(var(--px) * 2) calc(var(--px) * 3) 0 0 var(--ink-shadow);
+}
+
+/* ---------- HUD バー ---------- */
+.hud {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+  background: var(--ink); color: var(--cloud);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.hud-in {
+  max-width: 1080px; margin: 0 auto; height: var(--bar-h);
+  display: flex; align-items: center; gap: 12px;
+}
+.hud-brand { font-size: 15px; white-space: nowrap; color: var(--sky-4); }
+.hud-nav { display: flex; margin-left: auto; }
+.hud-nav a {
+  display: grid; place-items: center; width: 44px; height: var(--bar-h);
+  color: var(--cloud); text-decoration: none;
+}
+.hud-nav a span {
+  display: grid; place-items: center; width: 26px; height: 26px; font-size: 15px; line-height: 1;
+  box-shadow: inset 0 0 0 2px var(--sky-3);
+}
+.hud-nav a:hover span, .hud-nav a:focus-visible span { box-shadow: inset 0 0 0 2px var(--cloud); }
+.hud-nav a.is-clear span { background: var(--sun); color: var(--ink); box-shadow: inset 0 0 0 2px var(--sun); }
+.hud-score { display: flex; align-items: center; gap: 6px; font-size: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hud-score svg { width: 16px; height: 16px; }
+.hud-score.is-bump b { animation: bump 0.24s steps(2); }
+.hud-score b { font-weight: 400; display: inline-block; color: var(--sun); }
+@keyframes bump { 50% { transform: translateY(-4px); } }
+
+/* ---------- 共通ラッパー ---------- */
+.wrap {
+  max-width: 1112px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- HERO ---------- */
+.hero {
+  padding-top: calc(var(--bar-h) + 28px);
+  background: linear-gradient(to bottom,
+    var(--sky-3) 0 56px, var(--sky-4) 56px 148px, var(--sky-5) 148px);
+}
+.id {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding-bottom: 20px;
+}
+.avatar { width: 88px; height: 88px; flex: none; image-rendering: pixelated; image-rendering: crisp-edges; }
+.id-text { min-width: 0; flex: 1 1 260px; }
+.id-role { font-size: 15px; color: var(--ink); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.id-role span { white-space: nowrap; }
+.id-name { font-size: clamp(38px, 7vw, 60px); line-height: 1.15; letter-spacing: 0.08em; }
+.id-sub { font-size: 16px; color: var(--ink); }
+.id-sub b { font-weight: 400; background: var(--ink); color: var(--cloud); padding: 1px 8px; margin-left: 8px; white-space: nowrap; }
+
+.game { position: relative; }
+.game canvas {
+  display: block; width: 100%; aspect-ratio: 12 / 5;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  background: var(--sky-3);
+  cursor: pointer; touch-action: manipulation;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-info {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px;
+  padding: 12px 4px 0; font-size: 15px;
+}
+.game-info .how { margin-right: auto; min-width: 0; }
+.game-info .mode { color: var(--ink-soft); white-space: nowrap; }
+.game-info .mode i { font-style: normal; display: inline-block; width: 9px; height: 9px; background: var(--sun-deep); margin-right: 6px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- 会話ウィンドウ ---------- */
+.talk-sec { padding-block: 36px 8px; }
+.talk { position: relative; padding: 26px 24px 16px; max-width: 880px; margin-inline: auto; cursor: pointer; }
+.talk-name {
+  position: absolute; top: -16px; left: 16px;
+  background: var(--ink); color: var(--cloud); font-size: 15px; padding: 2px 14px; line-height: 1.6;
+}
+.talk-lines { display: grid; gap: 8px; font-family: var(--font-dot); font-size: 17px; line-height: 1.75; letter-spacing: 0.02em; }
+.talk-lines p { min-width: 0; }
+.talk-lines .rest { color: var(--ink-soft); }
+.talk-lines p.is-cur .done::after {
+  content: ""; display: inline-block; width: 0.5em; height: 1em; margin-left: 2px;
+  background: var(--ink); vertical-align: -0.12em; animation: blink 0.7s steps(1) infinite;
+}
+.talk-ctl { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-family: var(--font-dot); font-size: 15px; color: var(--ink);
+  min-height: 44px; padding: 6px 16px; border: 0; background: var(--sky-5); cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.btn:hover { background: var(--sun); }
+.btn.is-next { background: var(--ink); color: var(--cloud); }
+.btn.is-next:hover { background: var(--sky-1); }
+.btn.is-next .tri { display: inline-block; color: var(--sun); animation: nudge 0.8s steps(2) infinite; }
+@keyframes nudge { 50% { transform: translateY(3px); } }
+
+/* ---------- 雲の区切り ---------- */
+.clouds { display: flex; justify-content: center; align-items: flex-end; gap: 28px; padding-block: 44px 8px; }
+.clouds svg:nth-child(1) { width: 51px; }
+.clouds svg:nth-child(2) { width: 102px; }
+.clouds svg:nth-child(3) { width: 68px; margin-bottom: 14px; }
+
+/* ---------- STAGE ---------- */
+.stage { padding-block: 36px; scroll-margin-top: calc(var(--bar-h) + 8px); }
+.stage-grid { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 20px 40px; align-items: start; }
+.stage-head { position: sticky; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 20px); display: grid; gap: 8px; }
+.stage-icon { width: 56px; height: 56px; display: grid; place-items: center; }
+.stage-icon svg { width: 44px; height: auto; }
+.stage-no { font-size: 15px; display: inline-block; background: var(--ink); color: var(--cloud); padding: 0 10px; justify-self: start; }
+.stage-title { font-size: 40px; line-height: 1.1; letter-spacing: 0.06em; }
+.stage-sub { font-size: 14px; color: var(--ink-soft); font-weight: 500; }
+.stage-body { min-width: 0; display: grid; gap: 22px; }
+.stage-end { height: 1px; }
+
+/* PROFILE */
+.status { padding: 24px; display: grid; gap: 18px; }
+.status dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; }
+.status dt { font-family: var(--font-dot); font-size: 14px; color: var(--cloud); background: var(--sky-1); padding: 0 8px; align-self: start; line-height: 1.9; }
+.status dd { min-width: 0; font-weight: 500; }
+.status p { border-top: 2px dashed var(--cloud-shade); padding-top: 16px; max-width: 40em; }
+
+/* CAREER */
+.route { position: relative; display: grid; gap: 22px; padding-left: 52px; }
+.route::before {
+  content: ""; position: absolute; left: 17px; top: 8px; bottom: 8px; width: 4px;
+  background: repeating-linear-gradient(to bottom, var(--ink) 0 4px, transparent 4px 12px);
+}
+.cp { position: relative; }
+.cp-mark {
+  position: absolute; left: -52px; top: 6px; width: 38px; height: 38px;
+  display: grid; place-items: center; background: var(--cloud);
+  box-shadow: 0 -3px 0 var(--ink), 0 3px 0 var(--ink), -3px 0 0 var(--ink), 3px 0 0 var(--ink);
+}
+.cp-mark svg { width: 24px; height: auto; }
+.cp.is-now .cp-mark { background: var(--sun); }
+.cp-card { padding: 16px 20px 18px; display: grid; gap: 6px; }
+.cp-when { font-size: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cp-when b { font-weight: 400; background: var(--ink); color: var(--cloud); padding: 0 10px; }
+.cp.is-now .cp-when b { background: var(--sun); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.cp-when span { color: var(--ink-soft); }
+.cp-title { font-size: 18px; font-weight: 700; line-height: 1.5; }
+.cp-list { display: grid; gap: 4px; font-size: 15px; }
+.cp-list li { position: relative; padding-left: 18px; }
+.cp-list li::before { content: ""; position: absolute; left: 2px; top: 0.72em; width: 7px; height: 7px; background: var(--sky-2); }
+
+/* SKILL */
+.sub-h { font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.sub-h::after { content: ""; flex: 1; height: 4px; background: repeating-linear-gradient(to right, var(--ink) 0 4px, transparent 4px 10px); }
+.slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.slot { padding: 12px; display: grid; gap: 8px; justify-items: start; min-width: 0; align-content: start; }
+.slot-ic {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  background: var(--sky-1); color: var(--cloud); font-family: var(--font-dot); font-size: 18px; line-height: 1;
+  box-shadow: inset -3px -3px 0 rgba(20, 38, 74, 0.28), inset 3px 3px 0 rgba(255, 255, 255, 0.25);
+}
+.slot-name { font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.slot-note { font-size: 13px; color: var(--ink-soft); line-height: 1.5; overflow-wrap: anywhere; }
+.slot.is-empty { background: transparent; box-shadow: none; outline: 3px dashed var(--sky-3); outline-offset: -3px; }
+.slot.is-empty .slot-ic { background: transparent; color: var(--ink-soft); box-shadow: none; outline: 2px dashed var(--sky-3); }
+.slot.is-empty .slot-name { color: var(--ink-soft); font-weight: 500; }
+.fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.fields li { background: var(--cloud); padding: 6px 14px; font-weight: 500; box-shadow: inset 0 0 0 2px var(--ink); display: flex; align-items: center; gap: 8px; }
+.fields li::before { content: ""; width: 8px; height: 8px; background: var(--sun); box-shadow: 0 0 0 2px var(--ink); flex: none; }
+.note { font-size: 13px; color: var(--ink-soft); }
+
+/* WORKS */
+.works { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.work { min-width: 0; display: grid; grid-template-rows: auto 1fr; }
+.work:first-child { grid-column: 1 / -1; }
+.work-label {
+  background: var(--sky-1); color: var(--cloud); padding: 6px 16px; font-size: 14px;
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.work-label span:last-child { color: var(--sun-pale); }
+.work-main { padding: 16px 18px 18px; display: grid; gap: 8px; align-content: start; }
+.work-title { font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
+.work-desc { font-size: 15px; max-width: 38em; }
+.work-pins { height: 10px; margin: 0 18px; background: repeating-linear-gradient(to right, var(--ink) 0 8px, transparent 8px 14px); opacity: 0.85; }
+.go { justify-self: start; }
+
+/* ▶ カーソル付きリンク */
+.go, .menu a {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  font-family: var(--font-dot); font-size: 16px; text-decoration: none; color: var(--ink);
+}
+.go::before, .menu a::before { content: "▶"; font-size: 12px; color: var(--sun-deep); visibility: hidden; }
+.go:hover::before, .go:focus-visible::before, .menu a:hover::before, .menu a:focus-visible::before { visibility: visible; animation: poke 0.5s steps(2) infinite; }
+@keyframes poke { 50% { transform: translateX(3px); } }
+.go span, .menu a b { box-shadow: 0 2px 0 var(--ink); font-weight: 400; }
+
+/* CONTACT */
+.save { padding: 24px; display: grid; gap: 14px; }
+.save-lead { max-width: 38em; }
+.menu { display: grid; gap: 2px; border-top: 2px dashed var(--cloud-shade); padding-top: 10px; }
+.menu a { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 6px 4px; }
+.menu a small { font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); }
+.menu a:hover, .menu a:focus-visible { background: var(--sky-5); }
+
+/* ---------- フッター ---------- */
+.foot { padding-block: 40px 56px; text-align: center; font-size: 13px; color: var(--ink-soft); display: grid; gap: 4px; justify-items: center; }
+.foot .dot { color: var(--ink); font-size: 15px; }
+
+/* ---------- STAGE CLEAR バナー ---------- */
+.banner {
+  position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  max-width: calc(100% - 32px); width: max-content;
+  background: var(--ink); color: var(--cloud); padding: 8px 20px; text-align: center;
+  font-family: var(--font-dot); font-size: 18px; line-height: 1.5;
+  box-shadow: 0 -3px 0 var(--sun), 0 3px 0 var(--sun), -3px 0 0 var(--sun), 3px 0 0 var(--sun);
+  pointer-events: none;
+}
+.banner b { font-weight: 400; color: var(--sun); }
+.banner small { display: block; font-size: 13px; color: var(--sky-4); }
+.banner.is-in { animation: pop 0.3s steps(3); }
+@keyframes pop { from { transform: translate(-50%, 24px); } to { transform: translate(-50%, 0); } }
+
+/* ---------- スマホ ---------- */
+@media (max-width: 820px) {
+  .stage-grid { grid-template-columns: minmax(0, 1fr); }
+  .stage-head { position: static; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  .stage-icon { grid-row: 1 / span 3; }
+  .stage-title { font-size: 32px; }
+  .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  body { font-size: 15px; }
+  .hud-brand { display: none; }
+  .hud-nav { margin-left: -9px; }
+  .hud-score { margin-left: auto; }
+  .hero { padding-top: calc(var(--bar-h) + 20px); }
+  .id { gap: 14px; }
+  .avatar { width: 64px; height: 64px; }
+  .game canvas { aspect-ratio: 4 / 3; }
+  .talk { padding: 24px 16px 14px; }
+  .talk-lines { font-size: 16px; }
+  .status, .save { padding: 18px 16px; }
+  .works { grid-template-columns: minmax(0, 1fr); }
+  .route { padding-left: 48px; }
+  .cp-mark { left: -48px; }
+  .route::before { left: 17px; }
+  .cp-card { padding: 14px 16px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="hud">
+  <div class="hud-in">
+    <span class="hud-brand dot">PIXEL SKY / moritaoy</span>
+    <nav class="hud-nav dot" id="hudNav" aria-label="ステージ移動"></nav>
+    <div class="hud-score dot" id="hudScore" aria-label="集めた星の数"><span id="hudStar"></span><b id="hudNum">000</b></div>
+  </div>
+</header>
+
+<main id="app">
+  <noscript>
+    <div class="wrap" style="padding-top:72px">
+      <p>守田 一喜(Kazuki Morita / moritaoy)。ゲームのバックエンドエンジニアです。このページの表示には JavaScript が必要です。</p>
+    </div>
+  </noscript>
+</main>
+
+<div class="banner" id="banner" hidden aria-hidden="true"></div>
+
+<script>
+/* ============================================================
+   掲載内容はすべてこの PROFILE にまとまっています。ここを書き換えれば反映されます。
+   ============================================================ */
+const PROFILE = {
+  name: '守田 一喜',
+  kana: 'もりた かずき',
+  nameEn: 'Kazuki Morita',
+  id: 'moritaoy',
+  role: 'Game Backend Engineer',
+  roleJa: 'ゲームエンジニア(バックエンド)',
+  intro: [
+    'はじめまして。守田 一喜(もりた かずき)です。ネットでは moritaoy という ID で活動しています。',
+    'ゲームのバックエンドエンジニアです。2022年にサイバーエージェントへ新卒入社し、サムザップで『呪術廻戦 ファントムパレード』の開発・運用を担当してきました。',
+    '2024年に同タイトルのバックエンドテックリードに就任。現在は新規タイトルの開発に取り組んでいます。',
+    '学生時代は会津大学で競技プログラミングに打ち込みました。この先のステージで、経歴と制作物をご覧ください。'
+  ],
+  status: [
+    ['NAME', '守田 一喜(もりた かずき)'],
+    ['ID', 'moritaoy'],
+    ['JOB', 'ゲームエンジニア(バックエンド)/ テックリード'],
+    ['GUILD', 'サイバーエージェント(2022年 新卒入社)/ サムザップ配属'],
+    ['ORIGIN', '会津大学 コンピュータ理工学部 卒']
+  ],
+  summary: 'ゲームのバックエンドを中心に、API設計・テスト設計・運用に取り組んでいます。業務の外でも、AIエージェント活用のツールや Godot でのゲーム制作など、個人開発を続けています。',
+  career: [
+    {
+      when: '学生時代', place: '会津大学 コンピュータ理工学部',
+      title: '競技プログラミングと個人開発',
+      points: [
+        '競技プログラミング部に所属し、部長を務める',
+        'ICPC に出場。AtCoder 最高レート 約1800',
+        '大学2年後半から個人でWebアプリ開発(フレームワーク × クラウド)',
+        '自作オンラインジャッジ「SkyJudge」(Python)を開発'
+      ]
+    },
+    {
+      when: '2020', place: 'インターン / ハッカソン',
+      title: '学外での開発経験',
+      points: ['ビズリーチのインターンに参加', 'KONICA MINOLTA Hackathon 2020 に参加']
+    },
+    {
+      when: '2022', place: 'サイバーエージェント / サムザップ',
+      title: '新卒入社、『呪術廻戦 ファントムパレード』の開発・運用',
+      points: [
+        'サイバーエージェントに新卒入社し、サムザップに配属',
+        '1年目にイベント機能のサーバーサイド実装へ自ら立候補し、一人で担当'
+      ]
+    },
+    {
+      when: '2024', place: 'サムザップ',
+      title: '同タイトルのバックエンドテックリードに就任',
+      points: ['CAGC2024 で「『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み」を登壇'],
+      link: { label: '登壇スライドを見る', url: 'https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024' }
+    },
+    {
+      when: 'NOW', place: '進行中', now: true,
+      title: '新規タイトルの開発に従事',
+      points: []
+    }
+  ],
+  skills: [
+    { code: 'TS', name: 'TypeScript', note: 'kuromajutsu' },
+    { code: 'PY', name: 'Python', note: 'SkyJudge' },
+    { code: 'GO', name: 'Go', note: '' },
+    { code: 'C+', name: 'C++', note: '' },
+    { code: 'C#', name: 'C#', note: '' },
+    { code: 'GD', name: 'GDScript', note: 'Godot / Mining Dive' },
+    { code: 'VU', name: 'Vue', note: 'tournament_timer' }
+  ],
+  fields: ['ゲームバックエンド', 'API設計', 'テスト設計', '運用', 'AIエージェント活用'],
+  works: [
+    { title: 'kuromajutsu', tech: 'TypeScript', kind: 'TOOL',
+      desc: 'Cursor / Claude のサブエージェントを並列に起動・管理する MCP サーバー。',
+      link: { label: 'GitHub で見る', url: 'https://github.com/moritaoy/kuromajutsu' } },
+    { title: 'Mining Dive', tech: 'Godot / GDScript', kind: 'GAME',
+      desc: 'Godot で制作している個人制作ゲーム。Webプレイテスト版あり。' },
+    { title: 'tournament_timer', tech: 'Vue', kind: 'WEB',
+      desc: 'Vue で制作したトーナメント用タイマー。' },
+    { title: 'SkyJudge', tech: 'Python', kind: 'WEB',
+      desc: '学生時代に開発した自作のオンラインジャッジ。' },
+    { title: '競技プログラミングは就活の役に立つ、が。', tech: 'Qiita', kind: 'ARTICLE',
+      desc: '競技プログラミングと就職活動について書いた記事。',
+      link: { label: 'Qiita で読む', url: 'https://qiita.com/moritaoy/items/76e66499191077f857cb' } }
+  ],
+  links: [
+    { label: 'GitHub', note: 'github.com/moritaoy', url: 'https://github.com/moritaoy' },
+    { label: 'Qiita', note: 'qiita.com/moritaoy', url: 'https://qiita.com/moritaoy' },
+    { label: 'Interview', note: 'サイバーエージェント ゲーム事業部 エンジニア採用サイト', url: 'https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/' },
+    { label: 'Slides', note: 'CAGC2024 登壇資料(Speaker Deck)', url: 'https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024' }
+  ]
+};
+
+/* ============================================================
+   ドット絵(すべてオリジナル)。1文字 = 1ドット。
+   N:紺 W:白 S:雲の影 B/C/A:空の青 Y:黄 D:濃い黄
+   ============================================================ */
+const ART = {
+  star: ['...Y...', '...Y...', 'YYYYYYY', '.YYYYY.', '..YYY..', '.YY.YY.', '.Y...Y.'],
+  plane: [
+    'NN...........',
+    'NWNNN........',
+    'NWWWWNNN.....',
+    '.NWWWWWWNNN..',
+    '.NSSSWWWWWWNN',
+    '..NSSNNNNNN..',
+    '..NSN........',
+    '...N.........'
+  ],
+  flag: ['.N.......', '.NYYYY...', '.NYYYYYY.', '.NYYYYY..', '.NYYYY...', '.N.......', '.N.......', '.N.......', 'NNN......'],
+  card: ['NNNNNNNNNNN', 'NWWWWWWWWWN', 'NWBBWWNNNWN', 'NWBBWWWWWWN', 'NWBBWWNNNWN', 'NWWWWWWWWWN', 'NWNNNNNNNWN', 'NNNNNNNNNNN'],
+  road: ['....N....', '....NYYY.', '....NYY..', '....N....', '...NNN...', '..NCCCN..', '.NCCWCCN.', 'NCCCWCCCN', 'NNNNNNNNN'],
+  gem: ['..NNNNN..', '.NCCWCCN.', 'NCCWCCCCN', 'NBCCCCCBN', '.NBCCCBN.', '..NBCBN..', '...NBN...', '....N....'],
+  cart: ['NNNNNNNNN', 'NBBBBBBBN', 'NBWWWWWBN', 'NBWYYWWBN', 'NBWWWWWBN', 'NBBBBBBBN', 'NBBBBBBBN', 'NNBNBNBNN', '.NNNNNNN.'],
+  disk: ['NNNNNNNN.', 'NBWWWWBNN', 'NBWWWWBBN', 'NBBBBBBBN', 'NBBBBBBBN', 'NBNNNNNBN', 'NBNWWYNBN', 'NBNWWWNBN', 'NNNNNNNNN'],
+  cloud: ['.....WWWW........', '...WWWWWWW..WWW..', '.WWWWWWWWWWWWWWW.', 'WWWWWWWWWWWWWWWWW', '.SSSSSSSSSSSSSSS.']
+};
+
+function px(rows) {
+  const w = rows[0].length, h = rows.length;
+  let s = '';
+  rows.forEach((row, y) => {
+    let x = 0;
+    while (x < w) {
+      const c = row[x];
+      if (c === '.' || c === undefined) { x++; continue; }
+      let n = 1;
+      while (row[x + n] === c) n++;
+      s += '<rect class="p' + c + '" x="' + x + '" y="' + y + '" width="' + n + '" height="1"/>';
+      x += n;
+    }
+  });
+  return '<svg class="px" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true" focusable="false">' + s + '</svg>';
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function ext(link, cls) {
+  return '<a class="' + cls + '" href="' + esc(link.url) + '" target="_blank" rel="noopener"><span>' + esc(link.label) + '</span></a>';
+}
+
+/* ============================================================
+   描画(読み込み時に同期で DOM を組み立てる)
+   ============================================================ */
+const STAGES = [
+  { id: 'profile', no: 'STAGE 1', pip: '1', title: 'PROFILE', sub: 'プロフィール', icon: 'card' },
+  { id: 'career', no: 'STAGE 2', pip: '2', title: 'CAREER', sub: 'これまでの道のり', icon: 'road' },
+  { id: 'skill', no: 'STAGE 3', pip: '3', title: 'SKILL', sub: '技術と得意領域', icon: 'gem' },
+  { id: 'works', no: 'STAGE 4', pip: '4', title: 'WORKS', sub: '個人制作・発信', icon: 'cart' },
+  { id: 'contact', no: 'SAVE POINT', pip: 'S', title: 'CONTACT', sub: 'リンク', icon: 'disk' }
+];
+
+function stageShell(st, body) {
+  return '<section class="stage" id="' + st.id + '" aria-labelledby="h-' + st.id + '"><div class="wrap"><div class="stage-grid">' +
+    '<header class="stage-head"><div class="stage-icon">' + px(ART[st.icon]) + '</div>' +
+    '<span class="stage-no dot">' + st.no + '</span>' +
+    '<h2 class="stage-title dot" id="h-' + st.id + '">' + st.title + '</h2>' +
+    '<p class="stage-sub">' + st.sub + '</p></header>' +
+    '<div class="stage-body">' + body + '</div>' +
+    '</div><div class="stage-end" data-end="' + st.id + '"></div></div></section>';
+}
+const cloudRow = '<div class="clouds" aria-hidden="true">' + px(ART.cloud) + px(ART.cloud) + px(ART.cloud) + '</div>';
+
+function render() {
+  const P = PROFILE;
+  const hero =
+    '<section class="hero" id="top"><div class="wrap">' +
+      '<div class="id">' +
+        '<canvas class="avatar" id="avatar" width="22" height="22" role="img" aria-label="青空のアイコン"></canvas>' +
+        '<div class="id-text">' +
+          '<p class="id-role dot"><span>' + esc(P.role) + '</span></p>' +
+          '<h1 class="id-name dot">' + esc(P.name) + '</h1>' +
+          '<p class="id-sub dot">' + esc(P.nameEn) + '<b>@' + esc(P.id) + '</b></p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="game frame">' +
+        '<canvas id="game" tabindex="0" role="img" aria-label="紙飛行機が青空を飛んで星を集めるミニゲーム。スペースキーを押している間、上昇します。"></canvas>' +
+      '</div>' +
+      '<div class="game-info dot">' +
+        '<p class="how" id="how">長押し / Space で上昇。★ を集めよう</p>' +
+        '<p class="mode" id="mode"><i></i><span>AUTO PILOT</span></p>' +
+      '</div>' +
+    '</div></section>';
+
+  const talk =
+    '<section class="talk-sec" aria-label="自己紹介"><div class="wrap">' +
+      '<div class="talk frame" id="talk">' +
+        '<span class="talk-name dot">MORITA</span>' +
+        '<div class="talk-lines" id="talkLines">' +
+          P.intro.map(t => '<p><span class="done">' + esc(t) + '</span><span class="rest"></span></p>').join('') +
+        '</div>' +
+        '<div class="talk-ctl" id="talkCtl" hidden>' +
+          '<button type="button" class="btn" id="talkAll">全文表示</button>' +
+          '<button type="button" class="btn is-next" id="talkNext"><span class="tri">▼</span> <span id="talkNextLabel">つぎへ</span></button>' +
+        '</div>' +
+      '</div>' +
+    '</div></section>';
+
+  const profile = stageShell(STAGES[0],
+    '<div class="status frame">' +
+      '<dl>' + P.status.map(r => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl>' +
+      '<p>' + esc(P.summary) + '</p>' +
+    '</div>');
+
+  const career = stageShell(STAGES[1],
+    '<ol class="route">' + P.career.map(c =>
+      '<li class="cp' + (c.now ? ' is-now' : '') + '">' +
+        '<span class="cp-mark" aria-hidden="true">' + px(c.now ? ART.plane : ART.flag) + '</span>' +
+        '<div class="cp-card frame">' +
+          '<p class="cp-when dot"><b>' + esc(c.when) + '</b><span>' + esc(c.place) + '</span></p>' +
+          '<h3 class="cp-title">' + esc(c.title) + '</h3>' +
+          (c.points.length ? '<ul class="cp-list">' + c.points.map(p => '<li>' + esc(p) + '</li>').join('') + '</ul>' : '') +
+          (c.link ? ext(c.link, 'go') : '') +
+        '</div>' +
+      '</li>').join('') + '</ol>');
+
+  const skill = stageShell(STAGES[2],
+    '<h3 class="sub-h dot">ITEM / 言語・ツール</h3>' +
+    '<ul class="slots">' + P.skills.map(s =>
+      '<li class="slot frame"><span class="slot-ic" aria-hidden="true">' + esc(s.code) + '</span>' +
+      '<span class="slot-name">' + esc(s.name) + '</span>' +
+      (s.note ? '<span class="slot-note">' + esc(s.note) + '</span>' : '') + '</li>').join('') +
+      '<li class="slot is-empty"><span class="slot-ic" aria-hidden="true">?</span><span class="slot-name">NEXT ITEM</span><span class="slot-note">次に覚える技術の枠</span></li>' +
+    '</ul>' +
+    '<p class="note">GitHub の公開リポジトリで使っている技術を並べています。</p>' +
+    '<h3 class="sub-h dot">FIELD / 領域</h3>' +
+    '<ul class="fields">' + P.fields.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>');
+
+  const works = stageShell(STAGES[3],
+    '<ul class="works">' + P.works.map(w =>
+      '<li class="work frame">' +
+        '<div class="work-label dot"><span>' + esc(w.kind) + '</span><span>' + esc(w.tech) + '</span></div>' +
+        '<div class="work-main">' +
+          '<h3 class="work-title dot">' + esc(w.title) + '</h3>' +
+          '<p class="work-desc">' + esc(w.desc) + '</p>' +
+          (w.link ? ext(w.link, 'go') : '') +
+        '</div>' +
+      '</li>').join('') + '</ul>');
+
+  const contact = stageShell(STAGES[4],
+    '<div class="save frame">' +
+      '<p class="save-lead">ここまでお読みいただき、ありがとうございます。活動の記録は以下のリンクからご覧いただけます。</p>' +
+      '<nav class="menu" aria-label="外部リンク">' + P.links.map(l =>
+        '<a href="' + esc(l.url) + '" target="_blank" rel="noopener"><b>' + esc(l.label) + '</b><small>' + esc(l.note) + '</small></a>').join('') +
+      '</nav>' +
+    '</div>');
+
+  const foot =
+    '<footer class="foot"><div class="wrap">' +
+      '<p class="dot">© ' + esc(P.id) + ' / ' + esc(P.nameEn) + '</p>' +
+      '<p>掲載内容は公開情報をもとにした下書きです</p>' +
+    '</div></footer>';
+
+  document.getElementById('app').innerHTML =
+    hero + talk + cloudRow + profile + career + cloudRow + skill + works + cloudRow + contact + foot;
+
+  document.getElementById('hudNav').innerHTML = STAGES.map(st =>
+    '<a href="#' + st.id + '" data-pip="' + st.id + '" aria-label="' + st.title + ' へ移動"><span>' + st.pip + '</span></a>').join('');
+  document.getElementById('hudStar').innerHTML = px(ART.star);
+}
+render();
+
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = {
+  sky: [css('--sky-1'), css('--sky-2'), css('--sky-3'), css('--sky-4'), css('--sky-5')],
+  cloud: css('--cloud'), shade: css('--cloud-shade'), ink: css('--ink'),
+  sun: css('--sun'), sunDeep: css('--sun-deep'), sunPale: css('--sun-pale')
+};
+const PAL = { N: COL.ink, W: COL.cloud, S: COL.shade, B: COL.sky[1], C: COL.sky[2], A: COL.sky[3], Y: COL.sun, D: COL.sunDeep };
+
+/* ---------- アバター: ドットの青空 ---------- */
+(function avatar() {
+  const c = document.getElementById('avatar'), g = c.getContext('2d'), n = 22, r = 10.5;
+  const cloudPx = ['....WWW.....', '..WWWWWW.WW.', '.WWWWWWWWWWW', '..SSSSSSSSS.'];
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const d = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2);
+    if (d > r) continue;
+    let col = COL.sky[Math.min(3, Math.floor(y / 6))];
+    if (y % 6 === 5 && x % 2 === 0) col = COL.sky[Math.min(3, Math.floor(y / 6) + 1)];
+    if (d > r - 1.2) col = COL.ink;
+    g.fillStyle = col; g.fillRect(x, y, 1, 1);
+  }
+  cloudPx.forEach((row, j) => [...row].forEach((ch, i) => {
+    if (ch === '.') return;
+    g.fillStyle = PAL[ch]; g.fillRect(5 + i, 11 + j, 1, 1);
+  }));
+  g.fillStyle = COL.sun; g.fillRect(13, 4, 3, 3); g.fillRect(14, 3, 1, 5); g.fillRect(12, 5, 5, 1);
+})();
+
+/* ============================================================
+   ミニゲーム: 紙飛行機で ★ を集める(失敗なし)
+   ============================================================ */
+(function game() {
+  const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+  const hudNum = document.getElementById('hudNum'), hudScore = document.getElementById('hudScore');
+  const modeEl = document.querySelector('#mode span');
+  let W = 0, H = 0, bg = null, seaH = 0;
+  let clouds = [], stars = [], parts = [], trail = [];
+  const plane = { x: 0, y: -1, vy: 0 };
+  let held = false, hover = false, lastInput = -1e9, score = 0;
+  let seaOff = 0, spawnT = 0.6, trailT = 0, clock = 0, last = 0, raf = 0;
+  let onScreen = true, auto = true;
+  const SEA = Array.from({ length: 48 }, (_, i) =>
+    Math.round(2 + 2 * Math.sin(i / 48 * Math.PI * 6) + 1.5 * Math.sin(i / 48 * Math.PI * 14 + 1)));
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  function disc(g, cx, cy, r, col, dither) {
+    g.fillStyle = col;
+    for (let dy = -r; dy <= r; dy++) {
+      const half = Math.floor(Math.sqrt(r * r - dy * dy));
+      if (!dither) { g.fillRect(cx - half, cy + dy, half * 2 + 1, 1); continue; }
+      for (let dx = -half; dx <= half; dx++) if ((dx + dy) & 1) g.fillRect(cx + dx, cy + dy, 1, 1);
+    }
+  }
+
+  function buildBg() {
+    bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+    const g = bg.getContext('2d');
+    const edges = [0, 0.2, 0.42, 0.64, 0.84, 1].map(f => Math.round(f * H));
+    for (let i = 0; i < 5; i++) { g.fillStyle = COL.sky[i]; g.fillRect(0, edges[i], W, edges[i + 1] - edges[i]); }
+    for (let i = 1; i < 5; i++) {           // 帯の境目を市松で混ぜる
+      const e = edges[i];
+      g.fillStyle = COL.sky[i];
+      for (let x = 0; x < W; x += 2) g.fillRect(x, e - 1, 1, 1);
+      g.fillStyle = COL.sky[i - 1];
+      for (let x = 1; x < W; x += 2) g.fillRect(x, e, 1, 1);
+    }
+    const r = Math.max(6, Math.round(H * 0.13)), cx = Math.round(W * 0.82), cy = Math.round(H * 0.27);
+    disc(g, cx, cy, r + 4, COL.sunPale, true);
+    disc(g, cx, cy, r, COL.sunDeep);
+    disc(g, cx - 1, cy - 1, r - 1, COL.sun);
+    disc(g, cx - Math.round(r * 0.35), cy - Math.round(r * 0.35), Math.max(1, Math.round(r * 0.28)), COL.sunPale);
+  }
+
+  function makeCloud(layer, x) {
+    const cfg = [
+      { w: [10, 18], h: 3, y: [0.08, 0.5], sp: 0.022, col: COL.sky[3], shade: null },
+      { w: [16, 28], h: 4, y: [0.14, 0.62], sp: 0.05, col: COL.cloud, shade: COL.shade },
+      { w: [24, 40], h: 5, y: [0.3, 0.74], sp: 0.095, col: COL.cloud, shade: COL.shade }
+    ][layer];
+    const w = Math.round(rnd(cfg.w[0], cfg.w[1]));
+    const bumps = [];
+    const n = layer === 0 ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      const bw = Math.max(4, Math.round(w * rnd(0.28, 0.42)));
+      bumps.push({ dx: Math.round(rnd(2, w - bw - 2)), w: bw, h: Math.round(rnd(2, 2 + layer + 1)) });
+    }
+    return { layer, x, y: Math.round(rnd(cfg.y[0], cfg.y[1]) * H), w, h: cfg.h, sp: cfg.sp, col: cfg.col, shade: cfg.shade, bumps };
+  }
+
+  function setup() {
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 10) return;
+    const scale = Math.max(3, Math.round(rect.width / 220));
+    const nw = Math.max(60, Math.round(rect.width / scale)), nh = Math.max(40, Math.round(rect.height / scale));
+    if (nw === W && nh === H) return;
+    W = nw; H = nh; cv.width = W; cv.height = H;
+    seaH = Math.max(5, Math.round(H * 0.09));
+    ctx.imageSmoothingEnabled = false;
+    buildBg();
+    clouds = [];
+    [3, 3, 2].forEach((n, layer) => { for (let i = 0; i < n; i++) clouds.push(makeCloud(layer, rnd(-10, W))); });
+    stars = [{ x: W * 0.55, y: H * 0.35, t: 0 }, { x: W * 0.9, y: H * 0.55, t: 1 }];
+    parts = []; trail = [];
+    plane.x = Math.floor(W * 0.22);
+    if (plane.y < 0 || plane.y > H) plane.y = H * 0.42;
+    draw();
+  }
+
+  function sprite(rows, x, y, slope) {
+    const mid = rows[0].length / 2;
+    for (let j = 0; j < rows.length; j++) {
+      const row = rows[j];
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (ch === '.') continue;
+        ctx.fillStyle = PAL[ch];
+        ctx.fillRect(x + i, y + j + (slope ? Math.round((i - mid) * slope) : 0), 1, 1);
+      }
+    }
+  }
+  function drawStar(s) {
+    const x = Math.round(s.x) - 3, y = Math.round(s.y) - 3 + (Math.floor(clock * 3 + s.t) % 2);
+    ctx.fillStyle = COL.sunDeep;
+    ART.star.forEach((row, j) => { for (let i = 0; i < 7; i++) if (row[i] !== '.') { ctx.fillRect(x + i - 1, y + j, 3, 1); ctx.fillRect(x + i, y + j - 1, 1, 3); } });
+    ctx.fillStyle = COL.sun;
+    ART.star.forEach((row, j) => { for (let i = 0; i < 7; i++) if (row[i] !== '.') ctx.fillRect(x + i, y + j, 1, 1); });
+    ctx.fillStyle = COL.sunPale; ctx.fillRect(x + 3, y + 2, 1, 2); ctx.fillRect(x + 2, y + 2, 1, 1);
+  }
+  function drawCloud(c) {
+    const x = Math.round(c.x), y = c.y;
+    ctx.fillStyle = c.col;
+    ctx.fillRect(x + 1, y, c.w - 2, c.h);
+    ctx.fillRect(x, y + 1, c.w, c.h - 2);
+    for (const b of c.bumps) { ctx.fillRect(x + b.dx, y - b.h, b.w, b.h); ctx.fillRect(x + b.dx + 1, y - b.h - 1, b.w - 2, 1); }
+    if (c.shade) { ctx.fillStyle = c.shade; ctx.fillRect(x + 2, y + c.h - 1, c.w - 4, 1); }
+  }
+
+  function draw() {
+    if (!bg) return;
+    ctx.drawImage(bg, 0, 0);
+    for (const c of clouds) drawCloud(c);
+    for (const s of stars) drawStar(s);
+    ctx.fillStyle = COL.cloud;
+    for (const t of trail) if (t.life > 0.25 || (Math.floor(t.x) & 1)) ctx.fillRect(Math.round(t.x), Math.round(t.y), t.life > 0.4 ? 2 : 1, 1);
+    const maxVy = H * 0.62;
+    sprite(ART.plane, plane.x, Math.round(plane.y), Math.max(-1, Math.min(1, plane.vy / maxVy)) * 0.34);
+    for (const p of parts) { ctx.fillStyle = p.life > 0.2 ? COL.sun : COL.sunPale; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+    // 雲海(奥 → 手前)
+    const o1 = Math.floor(seaOff * 0.5) + 17, o2 = Math.floor(seaOff);
+    ctx.fillStyle = COL.shade;
+    for (let x = 0; x < W; x++) { const h = seaH + 3 + SEA[(x + o1) % 48]; ctx.fillRect(x, H - h, 1, h); }
+    ctx.fillStyle = COL.cloud;
+    for (let x = 0; x < W; x++) { const h = seaH + SEA[(x + o2) % 48]; ctx.fillRect(x, H - h, 1, h); }
+  }
+
+  function setScore() {
+    hudNum.textContent = String(score).padStart(3, '0');
+    hudScore.classList.remove('is-bump'); void hudScore.offsetWidth; hudScore.classList.add('is-bump');
+  }
+
+  function update(dt) {
+    clock += dt;
+    const nowAuto = performance.now() / 1000 - lastInput > 5;
+    if (nowAuto !== auto) { auto = nowAuto; modeEl.textContent = auto ? 'AUTO PILOT' : 'MANUAL'; }
+    const top = 3, bottom = H - seaH - 14;
+    let up = held;
+    if (auto) {
+      let target = H * 0.4 + Math.sin(clock * 0.9) * H * 0.14, best = 1e9;
+      for (const s of stars) if (s.x > plane.x + 4 && s.x < best) { best = s.x; target = s.y - 4; }
+      up = plane.y + plane.vy * 0.28 > target;
+    }
+    const maxVy = H * 0.62;
+    plane.vy += (up ? -H * 2.0 : H * 1.25) * dt;
+    plane.vy = Math.max(-maxVy, Math.min(maxVy, plane.vy));
+    plane.y += plane.vy * dt;
+    if (plane.y < top) { plane.y = top; plane.vy = 0; }
+    if (plane.y > bottom) { plane.y = bottom; plane.vy = 0; }
+
+    for (const c of clouds) {
+      c.x -= c.sp * W * dt;
+      if (c.x + c.w < -2) Object.assign(c, makeCloud(c.layer, W + rnd(2, 30)));
+    }
+    seaOff += W * 0.07 * dt;
+
+    const speed = W * 0.2;
+    spawnT -= dt;
+    if (spawnT <= 0) { spawnT = rnd(1.0, 1.8); stars.push({ x: W + 5, y: rnd(9, bottom + 2), t: Math.random() * 2 }); }
+    for (const s of stars) {
+      s.x -= speed * dt;
+      if (Math.abs(s.x - (plane.x + 7)) < 8 && Math.abs(s.y - (plane.y + 4)) < 7) {
+        s.x = -99; score++; setScore();
+        for (let i = 0; i < 8; i++) {
+          const a = i / 8 * Math.PI * 2;
+          parts.push({ x: plane.x + 9, y: plane.y + 4, vx: Math.cos(a) * 26, vy: Math.sin(a) * 26, life: 0.4 });
+        }
+      }
+    }
+    stars = stars.filter(s => s.x > -9);
+    for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    parts = parts.filter(p => p.life > 0);
+
+    trailT -= dt;
+    if (trailT <= 0) { trailT = 0.07; trail.push({ x: plane.x - 1, y: plane.y + 4, life: 0.55 }); }
+    for (const t of trail) { t.x -= speed * dt; t.life -= dt; }
+    trail = trail.filter(t => t.life > 0);
+  }
+
+  function frame(ts) {
+    raf = 0;
+    const dt = Math.min(0.05, (ts - last) / 1000 || 0);
+    last = ts;
+    update(dt); draw();
+    kick();
+  }
+  function kick() {
+    if (REDUCED || raf || !onScreen || document.hidden || !bg) return;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+  function halt() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+
+  const touch = () => { lastInput = performance.now() / 1000; };
+  cv.addEventListener('pointerdown', e => { if (e.button > 0) return; held = true; touch(); });
+  const release = () => { if (held) touch(); held = false; };
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  window.addEventListener('blur', release);
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') hover = true; });
+  cv.addEventListener('pointerleave', () => { hover = false; });
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'Space') return;
+    const ae = document.activeElement;
+    if (ae === cv || (hover && (!ae || ae === document.body))) { e.preventDefault(); held = true; touch(); }
+  });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
+
+  if ('ResizeObserver' in window) new ResizeObserver(() => { setup(); kick(); }).observe(cv);
+  else window.addEventListener('resize', () => { setup(); kick(); });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(es => { onScreen = es[0].isIntersecting; onScreen ? kick() : halt(); }).observe(cv);
+  }
+  document.addEventListener('visibilitychange', () => { document.hidden ? halt() : kick(); });
+
+  if (REDUCED) document.getElementById('how').textContent = '動きを減らす設定のため、ミニゲームは停止しています';
+  setup(); kick();
+})();
+
+/* ============================================================
+   会話ウィンドウ: 全文は常に読める。タイプ演出は「濃い文字が進んでいく」だけ
+   ============================================================ */
+(function talk() {
+  if (REDUCED) return;
+  const box = document.getElementById('talk'), ctl = document.getElementById('talkCtl');
+  const next = document.getElementById('talkNext'), label = document.getElementById('talkNextLabel'), all = document.getElementById('talkAll');
+  const lines = [...document.querySelectorAll('#talkLines p')];
+  const texts = PROFILE.intro.map(t => [...t]);
+  let cur = 0, pos = 0, timer = 0;
+  ctl.hidden = false;
+
+  function paint() {
+    lines.forEach((p, i) => {
+      const n = i < cur ? texts[i].length : i === cur ? pos : 0;
+      p.children[0].textContent = texts[i].slice(0, n).join('');
+      p.children[1].textContent = texts[i].slice(n).join('');
+      p.classList.toggle('is-cur', i === cur);
+    });
+    const end = cur >= lines.length;
+    label.textContent = end ? 'はじめから' : 'つぎへ';
+    all.hidden = end;
+  }
+  function tick() {
+    if (cur >= lines.length) return;
+    if (pos < texts[cur].length) { pos++; paint(); timer = setTimeout(tick, 34); }
+    else timer = 0;
+  }
+  function advance() {
+    clearTimeout(timer); timer = 0;
+    if (cur >= lines.length) { cur = 0; pos = 0; }
+    else if (pos < texts[cur].length) { pos = texts[cur].length; paint(); return; }
+    else { cur++; pos = 0; }
+    paint(); tick();
+  }
+  next.addEventListener('click', e => { e.stopPropagation(); advance(); });
+  all.addEventListener('click', e => { e.stopPropagation(); clearTimeout(timer); timer = 0; cur = lines.length; pos = 0; paint(); });
+  box.addEventListener('click', e => { if (!e.target.closest('a,button') && !String(window.getSelection())) advance(); });
+  paint(); tick();
+})();
+
+/* ============================================================
+   STAGE CLEAR バナー(各ステージを読み終えたら一度だけ)
+   ============================================================ */
+(function clears() {
+  if (!('IntersectionObserver' in window)) return;
+  const banner = document.getElementById('banner');
+  const queue = []; let busy = false;
+  function show() {
+    if (busy || !queue.length) return;
+    busy = true;
+    const st = queue.shift();
+    banner.innerHTML = st.id === 'contact'
+      ? '<b>★</b> SAVE POINT <b>★</b><small>さいごまで到達しました</small>'
+      : '<b>★</b> ' + st.no + ' CLEAR <b>★</b><small>' + st.title + '</small>';
+    banner.hidden = false;
+    banner.classList.remove('is-in'); void banner.offsetWidth; banner.classList.add('is-in');
+    setTimeout(() => { banner.hidden = true; busy = false; show(); }, 1900);
+  }
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (!e.isIntersecting) return;
+      io.unobserve(e.target);
+      const st = STAGES.find(s => s.id === e.target.dataset.end);
+      const pip = document.querySelector('[data-pip="' + st.id + '"]');
+      if (pip) pip.classList.add('is-clear');
+      queue.push(st); show();
+    });
+  });
+  document.querySelectorAll('[data-end]').forEach(el => io.observe(el));
+})();
+</script>
+</body>
+</html>
