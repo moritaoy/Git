@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ja" data-phase="dawn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SORA 守田一喜</title>
+<meta name="description" content="守田一喜 (@moritaoy) のポートフォリオ。夜明けから星空まで、空の一日をスクロールでたどる。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&family=DM+Mono:wght@400;500&family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 固定の空(WebGL)の上を、左に時刻レール・右に本文の非対称 2 カラムが流れる。色は「時刻」で 4 相に切り替わる。 */
+@property --ink      { syntax: "<color>"; inherits: true; initial-value: #f6efe9; }
+@property --ink-soft { syntax: "<color>"; inherits: true; initial-value: #d9d0cf; }
+@property --glass    { syntax: "<color>"; inherits: true; initial-value: rgba(14,16,40,.5); }
+@property --line     { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,.28); }
+@property --accent   { syntax: "<color>"; inherits: true; initial-value: #ffc9a8; }
+@property --halo     { syntax: "<color>"; inherits: true; initial-value: rgba(8,10,30,.55); }
+
+:root {
+  color-scheme: dark;
+  --ink: #f6efe9; --ink-soft: #ddd3d2; --glass: rgba(14,16,40,.50); --line: rgba(255,255,255,.28);
+  --accent: #ffc9a8; --halo: rgba(8,10,30,.55);
+  --sky-top: #070b24; --sky-mid: #4a3560; --sky-low: #f0a08a; --sky-bot: #1a1c3c;
+  --f-display: "Shippori Mincho B1", "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --f-latin: "Cormorant Garamond", "Shippori Mincho B1", Georgia, serif;
+  --f-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --gutter-l: max(clamp(16px, 5vw, 72px), env(safe-area-inset-left, 0px));
+  --gutter-r: max(clamp(16px, 5vw, 72px), env(safe-area-inset-right, 0px));
+  transition: --ink .9s ease, --ink-soft .9s ease, --glass .9s ease, --line .9s ease, --accent .9s ease, --halo .9s ease;
+}
+:root[data-phase="day"]   { color-scheme: light; --ink: #0b2145; --ink-soft: #2a4368; --glass: rgba(255,255,255,.70); --line: rgba(11,33,69,.24); --accent: #0a4fb4; --halo: rgba(255,255,255,.7); }
+:root[data-phase="dusk"]  { --ink: #fff4e8; --ink-soft: #f1ddd0; --glass: rgba(38,16,38,.60); --line: rgba(255,232,214,.32); --accent: #ffbd7a; --halo: rgba(30,10,30,.6); }
+:root[data-phase="night"] { --ink: #eef2ff; --ink-soft: #c9d2ee; --glass: rgba(6,10,30,.58); --line: rgba(255,255,255,.24); --accent: #a9c9ff; --halo: rgba(2,4,18,.7); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: #070b24; color: var(--ink);
+  font-family: var(--f-body); font-size: 1rem; line-height: 1.9; font-feature-settings: "palt";
+  overflow-x: hidden; -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+ul, ol, dl, dd, p, h1, h2, h3, h4, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+/* ---- 空 ---- */
+.sky-fb, #sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -2; }
+.sky-fb { background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-low) 60%, var(--sky-bot) 100%); }
+#sky { z-index: -1; display: block; }
+#sky[hidden] { display: none; }
+
+/* ---- 上部ナビ ---- */
+.top {
+  position: fixed; inset: 0 0 auto 0; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) var(--gutter-r) 0 var(--gutter-l);
+  background: linear-gradient(180deg, var(--glass), transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent); mask-image: linear-gradient(180deg, #000 62%, transparent);
+  padding-bottom: 26px;
+  text-shadow: 0 0 14px var(--halo);
+}
+.top__brand { font-family: var(--f-latin); font-size: 1.35rem; letter-spacing: .32em; text-decoration: none; font-weight: 500; }
+.top__nav { display: flex; gap: clamp(10px, 2.4vw, 30px); }
+.top__nav a { font-family: var(--f-display); font-size: .86rem; letter-spacing: .14em; text-decoration: none; padding: 4px 0; border-bottom: 1px solid transparent; transition: border-color .25s; }
+.top__nav a:hover, .top__nav a[aria-current="true"] { border-bottom-color: var(--accent); }
+
+/* ---- 時刻 HUD ---- */
+.hud {
+  position: fixed; z-index: 20; left: var(--gutter-l); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: grid; grid-template-columns: auto auto; align-items: end; gap: 4px 12px;
+  padding: 10px 14px 9px; background: var(--glass); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.hud svg { width: 84px; height: 44px; grid-row: span 2; overflow: visible; }
+.hud svg path, .hud svg line { stroke: var(--line); fill: none; stroke-width: 1; }
+.hud svg .orb { fill: var(--accent); transition: fill .9s; }
+.hud__time { font-family: var(--f-mono); font-size: 1.08rem; letter-spacing: .06em; line-height: 1; font-variant-numeric: tabular-nums; }
+.hud__phase { font-family: var(--f-display); font-size: .8rem; letter-spacing: .2em; line-height: 1.2; color: var(--ink-soft); }
+
+/* ---- 共通 ---- */
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+.label { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); }
+.glass { background: var(--glass); border: 1px solid var(--line); -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); }
+.num { font-family: var(--f-latin); font-style: italic; font-weight: 400; font-variant-numeric: lining-nums; }
+.ext::after { content: "↗"; font-family: var(--f-mono); margin-left: .35em; display: inline-block; transition: transform .25s; }
+a:hover > .ext::after, a.ext:hover::after { transform: translate(2px, -2px); }
+
+/* ---- ヒーロー ---- */
+.hero { min-height: 100vh; min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: clamp(14px, 4vw, 56px); padding-top: 96px; padding-bottom: clamp(108px, 16vh, 150px); text-shadow: 0 0 22px var(--halo), 0 1px 2px var(--halo); }
+.hero__text { min-width: 0; display: grid; gap: clamp(14px, 2.4vh, 26px); max-width: 39rem; }
+.hero__kicker { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.hero__role { font-family: var(--f-latin); font-size: clamp(1.7rem, 4.4vw, 3.3rem); line-height: 1.1; font-weight: 500; letter-spacing: .01em; text-wrap: balance; }
+.hero__role em { font-style: italic; font-weight: 400; color: var(--accent); }
+.hero__lead { font-family: var(--f-display); font-size: clamp(1rem, 1.5vw, 1.2rem); line-height: 2.1; font-weight: 500; }
+.hero__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px 22px; border-top: 1px solid var(--line); padding-top: 14px; }
+.hero__facts dt { font-family: var(--f-mono); font-size: .66rem; letter-spacing: .2em; color: var(--ink-soft); }
+.hero__facts dd { font-size: .9rem; font-weight: 500; line-height: 1.55; }
+.hero__name { display: flex; flex-direction: row-reverse; align-items: flex-start; gap: clamp(6px, 1.2vw, 16px); align-self: center; }
+main { overflow-x: clip; }
+.hero__name h1 { writing-mode: vertical-rl; font-family: var(--f-display); font-weight: 800; font-size: min(15.5vh, 25vw, 12rem); line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+.hero__name h1 span { display: inline-block; height: .45em; }
+.hero__roman { writing-mode: vertical-rl; font-family: var(--f-latin); font-size: clamp(.8rem, 1.5vw, 1.1rem); letter-spacing: .5em; white-space: nowrap; padding-top: .3em; }
+.hero__roman b { font-family: var(--f-mono); font-weight: 400; font-size: .82em; letter-spacing: .12em; color: var(--accent); }
+.hero__cue { display: inline-flex; align-items: center; gap: 12px; font-family: var(--f-display); letter-spacing: .24em; font-size: .86rem; text-decoration: none; width: fit-content; }
+.hero__cue i { display: block; width: 46px; height: 1px; background: var(--ink); transform-origin: left; animation: cue 2.6s ease-in-out infinite; }
+@keyframes cue { 0%, 100% { transform: scaleX(.35); } 50% { transform: scaleX(1); } }
+
+/* ---- 章 ---- */
+.chapter { padding-block: clamp(70px, 13vh, 150px); }
+.chapter__head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-bottom: clamp(26px, 5vh, 54px); text-shadow: 0 0 22px var(--halo); }
+.chapter__time { font-size: clamp(3.4rem, 10vw, 8rem); line-height: .9; letter-spacing: -.02em; }
+.chapter__title { font-family: var(--f-display); font-weight: 700; font-size: clamp(1.6rem, 3.6vw, 2.7rem); letter-spacing: .12em; line-height: 1.3; }
+.chapter__title small { font-family: var(--f-mono); font-weight: 400; font-size: .72rem; letter-spacing: .22em; color: var(--ink-soft); margin-left: 1em; text-transform: uppercase; }
+.chapter__note { max-width: 40rem; color: var(--ink-soft); font-size: .95rem; }
+
+/* 序 */
+.intro { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); gap: clamp(20px, 4vw, 60px); align-items: start; }
+.intro__body { padding: clamp(22px, 3.4vw, 44px); display: grid; gap: 1.2em; }
+.intro__body p:first-child { font-family: var(--f-display); font-size: clamp(1.15rem, 2vw, 1.5rem); line-height: 1.95; font-weight: 500; }
+.intro__rows { display: grid; }
+.intro__rows > div { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); }
+.intro__rows dt { font-family: var(--f-mono); font-size: .7rem; letter-spacing: .18em; color: var(--ink-soft); padding-top: .5em; }
+.intro__rows dd { font-weight: 500; line-height: 1.6; }
+.intro__rows dd small { display: block; font-weight: 400; font-size: .82rem; color: var(--ink-soft); }
+.figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; padding: 6px clamp(18px, 2.6vw, 30px); }
+.figures > div { padding: 18px 0 16px; border-bottom: 1px solid var(--line); }
+.figures > div:nth-last-child(-n+2) { border-bottom: 0; }
+.figures .num { display: block; font-size: clamp(2.6rem, 5.4vw, 4.2rem); line-height: 1; }
+.figures .num small { font-family: var(--f-body); font-style: normal; font-size: .82rem; margin: 0 .25em; }
+.figures span.cap { display: block; font-size: .82rem; color: var(--ink-soft); line-height: 1.5; margin-top: 6px; }
+
+/* 経歴 */
+.era { display: grid; grid-template-columns: clamp(120px, 17vw, 230px) minmax(0, 1fr); gap: clamp(16px, 3vw, 44px); padding-block: clamp(22px, 5vh, 54px); }
+.era__rail { position: sticky; top: 92px; align-self: start; text-shadow: 0 0 22px var(--halo); }
+.era__year { font-size: clamp(2.6rem, 6.4vw, 5.4rem); line-height: 1; display: block; }
+.era__kind { display: block; margin-top: 8px; }
+.era__body { padding: clamp(20px, 3vw, 40px); display: grid; gap: 14px; max-width: 54rem; }
+.era__body h3 { font-family: var(--f-display); font-weight: 700; font-size: clamp(1.25rem, 2.3vw, 1.75rem); line-height: 1.5; letter-spacing: .04em; text-wrap: balance; }
+.era__body > p { max-width: 42rem; }
+.era__list { display: grid; gap: 0; }
+.era__list li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); padding: 9px 0; border-top: 1px solid var(--line); font-size: .95rem; line-height: 1.7; }
+.era__list li::before { content: "—"; color: var(--accent); }
+.era__now { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .2em; color: var(--accent); }
+.era__now::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+
+/* 作品 */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: clamp(18px, 3vw, 34px); }
+.work__main { padding: clamp(22px, 3.2vw, 44px); display: grid; gap: 14px; align-content: start; min-width: 0; }
+.work__side { padding: clamp(22px, 3.2vw, 44px); border-left: 1px solid var(--line); display: grid; gap: 16px; align-content: start; min-width: 0; }
+.work__type { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.work h3 { font-family: var(--f-latin); font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.05; letter-spacing: .01em; overflow-wrap: anywhere; }
+.work h3 small { display: block; font-family: var(--f-display); font-size: .95rem; letter-spacing: .08em; margin-top: 10px; line-height: 1.6; font-weight: 500; }
+.work__points li { padding: 8px 0; border-top: 1px solid var(--line); font-size: .93rem; line-height: 1.7; }
+.work__points b { font-weight: 700; margin-right: .6em; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.tags li { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .06em; padding: 2px 9px; border: 1px solid var(--line); line-height: 1.7; }
+.work__link { font-family: var(--f-mono); font-size: .78rem; letter-spacing: .14em; text-decoration: none; border-bottom: 1px solid var(--accent); width: fit-content; padding-bottom: 2px; }
+.side__title { font-family: var(--f-mono); font-size: .7rem; letter-spacing: .2em; color: var(--ink-soft); text-transform: uppercase; }
+.steps { counter-reset: s; display: grid; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em minmax(0, 11em) minmax(0, 1fr); gap: 4px 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: .86rem; line-height: 1.6; }
+.steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--f-mono); font-size: .7rem; color: var(--accent); }
+.steps code { font-family: var(--f-mono); font-size: .84rem; overflow-wrap: anywhere; }
+.steps--plain li { grid-template-columns: 2.2em minmax(0, 1fr); }
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; font-size: .8rem; line-height: 1.45; }
+.flow li { border: 1px solid var(--line); padding: 7px 10px; flex: 1 1 7.5em; min-width: 0; }
+.flow li b { display: block; font-family: var(--f-mono); font-weight: 500; font-size: .78rem; letter-spacing: .04em; }
+.flow li.arrow { border: 0; flex: 0 0 auto; padding: 0 1px; align-self: center; color: var(--accent); font-family: var(--f-mono); }
+
+.minor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.minor > li { display: block; }
+.minor__in { height: 100%; padding: 22px 22px 24px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; gap: 8px; align-content: start; text-decoration: none; position: relative; transition: background-color .3s; }
+.minor__in::after { content: ""; position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .35s ease; }
+a.minor__in:hover::after, a.minor__in:focus-visible::after { transform: scaleX(1); }
+.minor h4 { font-family: var(--f-latin); font-size: 1.55rem; font-weight: 500; line-height: 1.2; overflow-wrap: anywhere; }
+.minor p { font-size: .88rem; line-height: 1.7; }
+
+/* 技術 */
+.skills { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: clamp(18px, 3vw, 40px); align-items: start; }
+.skills > div { padding: clamp(20px, 3vw, 36px); }
+.lang li { display: grid; grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr); gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.lang li:first-child, .domain li:first-child { border-top: 0; }
+.lang b { font-family: var(--f-latin); font-size: 1.45rem; font-weight: 500; line-height: 1.2; }
+.lang span { font-size: .86rem; color: var(--ink-soft); line-height: 1.6; }
+.domain li { padding: 11px 0; border-top: 1px solid var(--line); font-family: var(--f-display); font-weight: 500; font-size: 1.08rem; letter-spacing: .06em; }
+
+/* リポジトリ年表 */
+.years { margin-top: clamp(26px, 5vh, 50px); padding: clamp(20px, 3vw, 36px); }
+.years__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 20px; margin-bottom: 14px; }
+.years__head h3 { font-family: var(--f-display); font-size: 1.25rem; letter-spacing: .1em; font-weight: 700; }
+.years__scroll { overflow-x: auto; }
+.years__grid { display: grid; grid-template-columns: repeat(8, minmax(118px, 1fr)); min-width: 944px; border-top: 1px solid var(--line); }
+.years__col { padding: 12px 10px 4px 0; border-right: 1px dashed var(--line); margin-right: 10px; display: grid; gap: 10px; align-content: start; }
+.years__col:last-child { border-right: 0; margin-right: 0; }
+.years__y { font-size: 1.9rem; line-height: 1; }
+.years__col.is-empty .years__y { opacity: .4; }
+.repo { display: grid; gap: 1px; text-decoration: none; font-size: .78rem; line-height: 1.45; padding-left: 9px; border-left: 2px solid var(--accent); }
+.repo b { font-family: var(--f-mono); font-weight: 500; font-size: .78rem; overflow-wrap: anywhere; }
+.repo span { color: var(--ink-soft); font-size: .72rem; }
+.repo.is-fork { border-left-style: dotted; }
+
+/* 発信 */
+.voices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: clamp(16px, 2.4vw, 28px); }
+.voice { padding: clamp(20px, 2.8vw, 34px); display: grid; gap: 12px; align-content: start; text-decoration: none; transition: transform .35s ease; }
+.voice:hover { transform: translateY(-4px); }
+.voice h3 { font-family: var(--f-display); font-weight: 700; font-size: clamp(1.1rem, 1.9vw, 1.4rem); line-height: 1.65; text-wrap: balance; }
+.voice p { font-size: .9rem; line-height: 1.8; }
+
+/* 連絡 */
+.contact { padding-bottom: clamp(140px, 22vh, 220px); text-shadow: 0 0 22px var(--halo); }
+.contact__grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(20px, 6vw, 90px); align-items: start; }
+.contact__verse { writing-mode: vertical-rl; font-family: var(--f-display); font-weight: 700; font-size: clamp(1.8rem, 5vw, 3.6rem); line-height: 1.7; letter-spacing: .16em; white-space: nowrap; }
+.links li { border-top: 1px solid var(--line); }
+.links li:last-child { border-bottom: 1px solid var(--line); }
+.links a { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 18px 4px; text-decoration: none; transition: padding .3s ease, background-color .3s; }
+.links a:hover, .links a:focus-visible { padding-left: 16px; background: var(--glass); }
+.links b { font-family: var(--f-latin); font-size: clamp(1.4rem, 2.6vw, 2rem); font-weight: 500; line-height: 1.2; }
+.links span { font-size: .86rem; color: var(--ink-soft); overflow-wrap: anywhere; line-height: 1.5; }
+.links i { font-family: var(--f-mono); font-style: normal; color: var(--accent); }
+.foot { margin-top: clamp(40px, 8vh, 80px); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .12em; color: var(--ink-soft); }
+
+noscript p { margin: 120px auto; max-width: 34rem; padding: 0 16px; font-family: var(--f-display); font-size: 1.1rem; }
+
+/* 出現: 見える状態から少しだけ動かす */
+.rv { transition: opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1); }
+.rv.is-wait { opacity: .35; transform: translateY(22px); }
+
+@media (max-width: 860px) {
+  .intro, .skills, .work { grid-template-columns: minmax(0, 1fr); }
+  .work__side { border-left: 0; border-top: 1px solid var(--line); }
+  .era { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .era__rail { position: static; display: flex; align-items: baseline; gap: 14px; }
+  .era__kind { margin: 0; }
+  .contact__grid { grid-template-columns: minmax(0, 1fr); }
+  .contact__verse { writing-mode: horizontal-tb; white-space: normal; line-height: 1.5; }
+  .links a { grid-template-columns: minmax(0, 1fr) auto; }
+  .links span { grid-column: 1; grid-row: 2; }
+  .links i { grid-row: 1; grid-column: 2; }
+  .steps li { grid-template-columns: 2.2em minmax(0, 1fr); }
+  .steps li span { grid-column: 2; }
+}
+@media (max-width: 520px) {
+  body { font-size: .95rem; }
+  .top__brand { font-size: 1.1rem; letter-spacing: .24em; }
+  .top__nav a { font-size: .78rem; letter-spacing: .08em; }
+  .hud { padding: 7px 10px 6px; gap: 3px 9px; }
+  .hud svg { width: 60px; height: 32px; }
+  .hud__time { font-size: .92rem; }
+  .hud__phase { font-size: .7rem; }
+  .hero { padding-bottom: 118px; }
+  .hero__facts { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="sky-fb" aria-hidden="true"></div>
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<header class="top">
+  <a class="top__brand" href="#top" aria-label="SORA 先頭へ">SORA</a>
+  <nav class="top__nav" aria-label="章">
+    <a href="#career">経歴</a><a href="#works">作品</a><a href="#skill">技術</a><a href="#voice">発信</a><a href="#contact">連絡</a>
+  </nav>
+</header>
+
+<aside class="hud" aria-label="いまの空の時刻">
+  <svg viewBox="0 0 84 44" aria-hidden="true">
+    <path d="M4 38 A38 34 0 0 1 80 38"/>
+    <line x1="0" y1="38" x2="84" y2="38"/>
+    <circle class="orb" id="orb" cx="6" cy="36" r="3.4"/>
+  </svg>
+  <span class="hud__time" id="hudTime">05:12</span>
+  <span class="hud__phase" id="hudPhase">夜明け</span>
+</aside>
+
+<main id="app"></main>
+<noscript><p>守田 一喜(@moritaoy)のポートフォリオです。内容の表示には JavaScript を有効にしてください。GitHub: github.com/moritaoy</p></noscript>
+
+<script>
+/* =====================================================================
+   PROFILE — 掲載内容はすべてここを編集すれば反映される
+   (公開情報をもとにした下書き。公開前に本人確認してください)
+   ===================================================================== */
+const PROFILE = {
+  name: ["守田", "一喜"],
+  kana: "もりた かずき",
+  roman: "KAZUKI MORITA",
+  id: "moritaoy",
+  role: ["Game Backend Engineer", "Tech Lead"],
+  lead: "ゲームの裏側を支えるバックエンドエンジニア。『呪術廻戦 ファントムパレード』のバックエンドテックリードを経て、いまは新規タイトルを開発しています。",
+  joinYear: 2022,                 // 新卒入社年(4月)。「社会人N年目」はここから自動計算
+  maxRating: 1800,                // AtCoder 最高レート(約)
+  heroFacts: [
+    ["所属", "株式会社サムザップ(サイバーエージェントグループ)"],
+    ["出身", "会津大学 コンピュータ理工学部"],
+    ["いま", "新規タイトルの開発"]
+  ],
+  intro: [
+    "競技プログラミングで鍛えた基礎を土台に、ゲームのサーバーサイドをつくっています。",
+    "会津大学では競技プログラミング部の部長を務め、ICPC に出場。2022年にサイバーエージェントへ新卒入社し、サムザップで『呪術廻戦 ファントムパレード』の開発・運用を担当しました。2024年に同タイトルのバックエンドテックリードに就任し、現在は新規タイトルの開発に携わっています。",
+    "仕事の外では、AI エージェントを並列に動かす MCP サーバーや、Godot での個人ゲーム制作を続けています。"
+  ],
+  rows: [
+    ["職種", "ゲームエンジニア(バックエンド)", "Backend Engineer / Tech Lead"],
+    ["所属", "株式会社サムザップ", "サイバーエージェントグループ"],
+    ["出身", "会津大学 コンピュータ理工学部", "競技プログラミング部"],
+    ["現在", "新規タイトルの開発", "進行中"],
+    ["ID", "@moritaoy", "GitHub / Qiita"]
+  ],
+  figures: [
+    { key: "career" },                                   // 自動計算
+    { value: 1800, pre: "約", cap: "AtCoder 最高レート" },
+    { value: 14, cap: "GitHub 公開リポジトリ(2019–2026)" },
+    { value: 2024, cap: "テックリード就任・CAGC2024 登壇の年", plain: true }
+  ],
+  eras: [
+    { t: .10, year: "学生", kind: "会津大学", title: "競技プログラミング部で、基礎を鍛える",
+      text: "会津大学 コンピュータ理工学部で競技プログラミング部に所属。大学2年の後半からは、フレームワークとクラウドを組み合わせた Web アプリを個人で開発しはじめました。",
+      list: ["競技プログラミング部の部長を務める", "ICPC に出場", "AtCoder 最高レート 約1800", "自作オンラインジャッジ「SkyJudge」を開発"] },
+    { t: .17, year: "2020", kind: "学外へ", title: "インターンとハッカソンで、チーム開発を知る",
+      text: "学外の開発現場とチーム開発を経験した年。",
+      list: ["ビズリーチのインターンに参加。GitHub 上の Java リポジトリを解析してスコア化する「JavaREPOAnalyzer」を制作", "KONICA MINOLTA Hackathon 2020 に参加(当日の Web サイトのコードを公開)"] },
+    { t: .25, year: "2022", kind: "入社", title: "サイバーエージェント入社、サムザップ配属",
+      text: "新卒で入社。『呪術廻戦 ファントムパレード』の開発・運用を担当しました。",
+      list: ["1年目、イベント機能のサーバーサイド実装に自ら立候補し、一人で担当"] },
+    { t: .37, year: "2024", kind: "テックリード", title: "『呪術廻戦 ファントムパレード』バックエンドテックリード就任",
+      text: "大規模なソースを安定して開発しつづけるために、テスト実装のルールを策定してチームで運用。その取り組みを社外カンファレンスで発表しました。",
+      list: ["2024年3月8日、CyberAgent Game Conference 2024(CAGC2024)に登壇", "演題「『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み」"] },
+    { t: .46, year: "NOW", kind: "現在", now: true, title: "新規タイトルの開発",
+      text: "サムザップにて、新規タイトルの開発に従事しています。", list: [] }
+  ],
+  works: [
+    { type: "MCP SERVER", year: "2026", name: "kuromajutsu", sub: "Cursor で subagent っぽいことをするための黒魔術",
+      text: "Cursor や Claude Code から、複数のサブ Agent を並列に起動・管理する MCP サーバー。職種ごとに Provider とモデルを指定でき、異なる Provider のモデルを混ぜて走らせられます。",
+      points: [
+        ["マルチ Provider", "Cursor CLI と Claude Code CLI を職種ごとに切り替え"],
+        ["職種ごとの設定", "kuromajutsu.config.yaml に職種・Provider・モデルを定義"],
+        ["ダッシュボード", "localhost:9696 で状況を確認。React SPA(ビルドなし)と WebSocket"],
+        ["ヘルスチェック", "起動時に各 Provider と textlint の利用可否を確認"]
+      ],
+      tags: ["TypeScript", "Node.js 20+", "MCP SDK (HTTP)", "WebSocket", "React", "Docker", "textlint"],
+      meta: "21 commits",
+      url: "https://github.com/moritaoy/kuromajutsu", label: "GITHUB",
+      sideTitle: "MCP ツール 7種(呼び出し順)",
+      steps: [
+        ["list_roles", "使える職種とモデルを確認"], ["create_group", "グループを作成"], ["run_agents", "Agent を一括起動"],
+        ["wait_agent", "完了を待機"], ["get_agent_status", "詳細な状況を確認"], ["report_result", "結果を登録(Agent 自身が実行)"], ["delete_group", "グループを削除"]
+      ],
+      flowTitle: "構成",
+      flow: [["メイン Agent", "Cursor / Claude Code"], ["kuromajutsu", "MCP over HTTP :9696"], ["サブ Agent × N", "Cursor CLI / Claude Code CLI"]] },
+    { type: "INTERNSHIP", year: "2020", name: "JavaREPOAnalyzer", sub: "ビズリーチのインターン成果物",
+      text: "GitHub 上の Java リポジトリを静的解析し、Java の経験を 7 つのカテゴリのスコアで見せる Web アプリ。活動量の数字だけでは見えない「どの領域を触ってきたか」を可視化します。リポジトリの登録、スコア閲覧、複数ユーザーの比較ができます。",
+      points: [
+        ["仮定 1", "あるリポジトリで得た経験は、使ったライブラリの種類数に比例する"],
+        ["仮定 2", "コード量も経験になるが、増えるほど伸びは鈍る(対数で評価)"],
+        ["設計", "全ファイルの解析は重いので Web アプリから切り離し、キュー経由で並列化・スケールできる構成に"]
+      ],
+      tags: ["Spring Boot", "Thymeleaf", "Python", "GitHub API", "boto3", "API Gateway", "SQS", "DynamoDB"],
+      meta: "14 commits / MIT",
+      url: "https://github.com/moritaoy/PJ-intern-JavaREPOAnalyzer", label: "GITHUB",
+      sideTitle: "静的解析の 4 手順",
+      stepsPlain: [".java ファイルをすべて列挙", "各ファイルが使うライブラリを列挙", "辞書でライブラリをカテゴリに対応づけて集計", "カテゴリごとのスコアを計算"],
+      chipsTitle: "スコアの 7 カテゴリ",
+      chips: ["Web / Network", "Data", "Database", "Security", "Mobile", "Machine Learning", "Graphic / UI"],
+      flowTitle: "構成",
+      flow: [["Web アプリ", "Spring Boot + Thymeleaf"], ["API Gateway → SQS", "解析リクエストをキューへ"], ["解析システム", "Python がポーリング"], ["DynamoDB", "結果を保存"]] }
+  ],
+  minor: [
+    { type: "GAME", year: "2026", name: "Mining Dive", tech: "Godot / GDScript", text: "Godot で制作している個人制作ゲーム。Web プレイテスト版を GitHub Pages で公開中。", url: "https://moritaoy.github.io/lenda-web/", label: "PLAY" },
+    { type: "SYSTEM", year: "2020", name: "SkyJudge", tech: "Python / Django", text: "学生時代に自作したオンラインジャッジ。公開しているのは Web フロントで、judge・problem・user のアプリで構成。", url: "https://github.com/moritaoy/SkyJudgeWeb", label: "GITHUB" },
+    { type: "WEB APP", year: "2024", name: "tournament_timer", tech: "Vue", text: "Vue で制作したトーナメント用タイマー。", url: "https://github.com/moritaoy/tournament_timer", label: "GITHUB" },
+    { type: "HACKATHON", year: "2020", name: "KMH2020-web", tech: "JavaScript", text: "KONICA MINOLTA Hackathon 2020 で用いた Web サイトのコード。", url: "https://github.com/moritaoy/KMH2020-web", label: "GITHUB" },
+    { type: "MICRO SERVICE", year: "2023", name: "gmdb_tabelog_crowler", tech: "gourmori DB", text: "gourmori DB 向けのマイクロサービス。食べログの URL から評価などの情報を取得して保存する。", url: "https://github.com/moritaoy/gmdb_tabelog_crowler", label: "GITHUB" },
+    { type: "OSS FORK", year: "2020–21", name: "grpc / library-checker-problems", tech: "C++", text: "gRPC と、Library Checker の問題データ(yosupo06/library-checker-problems)をフォーク。", url: "https://github.com/moritaoy?tab=repositories", label: "GITHUB" }
+  ],
+  languages: [
+    ["TypeScript", "kuromajutsu(MCP サーバー)"],
+    ["Python", "SkyJudge、JavaREPOAnalyzer の解析システム"],
+    ["Go", ""],
+    ["C++", "競技プログラミング"],
+    ["C#", ""],
+    ["GDScript", "Godot / Mining Dive"],
+    ["Vue", "tournament_timer"],
+    ["Java", "JavaREPOAnalyzer(Spring Boot)"]
+  ],
+  domains: ["ゲームバックエンド", "API 設計", "テスト設計", "運用", "AI エージェント活用"],
+  repos: [   // GitHub 公開リポジトリ。日付は最終更新日
+    { y: 2019, name: "library", date: "05.24", note: "" },
+    { y: 2020, name: "my-first-blog", date: "05.13", note: "Python — Hello Django!!" },
+    { y: 2020, name: "SkyJudgeWeb", date: "07.05", note: "Python — SkyJudge web front" },
+    { y: 2020, name: "library-checker-problems", date: "09.07", note: "C++ — fork", fork: true },
+    { y: 2020, name: "PJ-intern-JavaREPOAnalyzer", date: "10.02", note: "ビズリーチ インターン成果物" },
+    { y: 2020, name: "KMH2020-web", date: "10.04", note: "JavaScript — Hackathon" },
+    { y: 2021, name: "simple-judge", date: "01.22", note: "" },
+    { y: 2021, name: "grpc", date: "06.08", note: "C++ — fork", fork: true },
+    { y: 2022, name: "balancer-tester", date: "01.02", note: "" },
+    { y: 2023, name: "gmdb_tabelog_crowler", date: "05.05", note: "gourmori DB micro service" },
+    { y: 2024, name: "tournament_timer", date: "08.20", note: "Vue" },
+    { y: 2026, name: "lenda-web", date: "09.05", note: "Mining Dive playtest" },
+    { y: 2026, name: "kuromajutsu", date: "10.30", note: "TypeScript — MCP server" },
+    { y: 2026, name: "Git", date: "11.10", note: "For the Exercise of DM" }
+  ],
+  voices: [
+    { kind: "TALK", date: "2024.03.08", title: "『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み",
+      text: "CyberAgent Game Conference 2024 での登壇。大規模なソース開発を安定して行うために策定したテスト実装のルール、実際に書いているテスト、チームで意識していること、テストを活用した仕組みの例を紹介。",
+      site: "Speaker Deck", url: "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024" },
+    { kind: "ARTICLE", date: "Qiita", title: "競技プログラミングは就活の役に立つ、が。",
+      text: "競技プログラミングと就職活動について書いた記事。",
+      site: "Qiita", url: "https://qiita.com/moritaoy/items/76e66499191077f857cb" },
+    { kind: "INTERVIEW", date: "CyberAgent", title: "サイバーエージェント ゲーム事業部 エンジニア採用サイト インタビュー",
+      text: "経歴と、担当タイトルでの仕事について。",
+      site: "gameengineers.cyberagent.co.jp", url: "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/" }
+  ],
+  links: [
+    ["GitHub", "github.com/moritaoy", "https://github.com/moritaoy"],
+    ["Qiita", "qiita.com/moritaoy", "https://qiita.com/moritaoy"],
+    ["Interview", "サイバーエージェント ゲーム事業部 エンジニア採用サイト", "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/"],
+    ["Slides", "CAGC2024 登壇資料(Speaker Deck)", "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024"],
+    ["Play", "Mining Dive Web プレイテスト版", "https://moritaoy.github.io/lenda-web/"]
+  ],
+  verse: ["また、", "空の下で。"]
+};
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const mix = (a, b, k) => a + (b - a) * k;
+const sstep = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+const reducedMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function careerYear() {
+  const now = new Date();
+  return Math.max(1, now.getFullYear() - PROFILE.joinYear + (now.getMonth() >= 3 ? 1 : 0));
+}
+/* 空の時刻: スクロール進捗 t(0→1) を 05:12→23:40 に対応させる */
+const T0 = 5 * 60 + 12, T1 = 23 * 60 + 40;
+const clock = t => { const m = Math.round(mix(T0, T1, t)); return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+const PHASES = [[.11, "夜明け", "dawn"], [.15, "朝", "dawn"], [.30, "朝", "day"], [.58, "真昼", "day"], [.66, "午後", "day"], [.82, "夕焼け", "dusk"], [.90, "宵", "night"], [2, "星空", "night"]];
+const phaseOf = t => PHASES.find(p => t < p[0]);
+
+/* ---------- render ---------- */
+function render() {
+  const P = PROFILE, cy = careerYear();
+  const head = (t, ja, en, note) => `
+    <header class="chapter__head">
+      <span class="chapter__time num" aria-hidden="true">${clock(t)}</span>
+      <h2 class="chapter__title">${esc(ja)}<small>${esc(en)}</small></h2>
+      ${note ? `<p class="chapter__note">${esc(note)}</p>` : ""}
+    </header>`;
+  const tags = a => `<ul class="tags">${a.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  const flow = a => `<ol class="flow">${a.map((x, i) => `${i ? '<li class="arrow" aria-hidden="true">→</li>' : ""}<li><b>${esc(x[0])}</b>${esc(x[1])}</li>`).join("")}</ol>`;
+
+  const hero = `
+  <section class="hero wrap" id="top" data-t="0">
+    <div class="hero__text">
+      <p class="hero__kicker label"><span>Portfolio</span><span>${clock(0)} 夜明け</span></p>
+      <p class="hero__role">${esc(P.role[0])} <em>/ ${esc(P.role[1])}</em></p>
+      <p class="hero__lead">${esc(P.lead)}</p>
+      <dl class="hero__facts">${P.heroFacts.map(f => `<div><dt>${esc(f[0])}</dt><dd>${esc(f[1])}</dd></div>`).join("")}</dl>
+      <a class="hero__cue" href="#intro"><i aria-hidden="true"></i>一日をたどる</a>
+    </div>
+    <div class="hero__name">
+      <h1 aria-label="${esc(P.name.join(" "))}">${esc(P.name[0])}<span></span>${esc(P.name[1])}</h1>
+      <p class="hero__roman">${esc(P.roman)}　<b>@${esc(P.id)}</b></p>
+    </div>
+  </section>`;
+
+  const figs = P.figures.map(f => f.key === "career"
+    ? `<div><span class="num"><span data-count="${cy}">${cy}</span><small>年目</small></span><span class="cap">社会人(${P.joinYear}年 新卒入社)</span></div>`
+    : `<div><span class="num">${f.pre ? `<small>${esc(f.pre)}</small>` : ""}<span ${f.plain ? "" : `data-count="${f.value}"`}>${f.value}</span></span><span class="cap">${esc(f.cap)}</span></div>`).join("");
+
+  const intro = `
+  <section class="chapter wrap" id="intro" data-t=".05">
+    <div class="intro">
+      <div class="intro__body glass rv">
+        ${P.intro.map(x => `<p>${esc(x)}</p>`).join("")}
+        <dl class="intro__rows">${P.rows.map(r => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}<small>${esc(r[2])}</small></dd></div>`).join("")}</dl>
+      </div>
+      <div class="figures glass rv">${figs}</div>
+    </div>
+  </section>`;
+
+  const career = `
+  <section class="chapter wrap" id="career" data-t=".08">
+    ${head(.08, "経歴", "Career", "夜明けの学生時代から、いまの現場まで。")}
+    ${P.eras.map(e => `
+    <article class="era" data-t="${e.t}">
+      <div class="era__rail"><span class="era__year num">${esc(e.year)}</span><span class="era__kind label">${clock(e.t)} — ${esc(e.kind)}</span></div>
+      <div class="era__body glass rv">
+        ${e.now ? '<span class="era__now">IN PROGRESS</span>' : ""}
+        <h3>${esc(e.title)}</h3>
+        <p>${esc(e.text)}</p>
+        ${e.list.length ? `<ul class="era__list">${e.list.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul>` : ""}
+      </div>
+    </article>`).join("")}
+  </section>`;
+
+  const works = `
+  <section class="chapter wrap" id="works" data-t=".53">
+    ${head(.53, "作品", "Works", "個人制作と、学生時代のチーム開発。")}
+    ${P.works.map(w => `
+    <article class="work glass rv">
+      <div class="work__main">
+        <p class="work__type label"><span>${esc(w.type)}</span><span>${esc(w.year)} — ${esc(w.meta)}</span></p>
+        <h3>${esc(w.name)}<small>${esc(w.sub)}</small></h3>
+        <p>${esc(w.text)}</p>
+        <ul class="work__points">${w.points.map(p => `<li><b>${esc(p[0])}</b>${esc(p[1])}</li>`).join("")}</ul>
+        ${tags(w.tags)}
+        <a class="work__link ext" href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.label)}</a>
+      </div>
+      <div class="work__side">
+        <p class="side__title">${esc(w.sideTitle)}</p>
+        ${w.steps ? `<ol class="steps">${w.steps.map(s => `<li><code>${esc(s[0])}</code><span>${esc(s[1])}</span></li>`).join("")}</ol>` : ""}
+        ${w.stepsPlain ? `<ol class="steps steps--plain">${w.stepsPlain.map(s => `<li><span>${esc(s)}</span></li>`).join("")}</ol>` : ""}
+        ${w.chips ? `<p class="side__title">${esc(w.chipsTitle)}</p>${tags(w.chips)}` : ""}
+        <p class="side__title">${esc(w.flowTitle)}</p>
+        ${flow(w.flow)}
+      </div>
+    </article>`).join("")}
+    <ul class="minor glass rv">
+      ${P.minor.map(m => `<li><a class="minor__in" href="${esc(m.url)}" target="_blank" rel="noopener">
+        <span class="label">${esc(m.type)} — ${esc(m.year)}</span>
+        <h4>${esc(m.name)}</h4>
+        <p>${esc(m.text)}</p>
+        <span class="label">${esc(m.tech)}</span>
+        <span class="work__link ext">${esc(m.label)}</span>
+      </a></li>`).join("")}
+    </ul>
+  </section>`;
+
+  const years = []; for (let y = 2019; y <= 2026; y++) years.push(y);
+  const skill = `
+  <section class="chapter wrap" id="skill" data-t=".66">
+    ${head(.66, "技術", "Skill & Repositories", "使ってきた言語と、取り組んでいる領域。")}
+    <div class="skills">
+      <div class="glass rv">
+        <p class="side__title">言語 / どこで使ったか</p>
+        <ul class="lang">${P.languages.map(l => `<li><b>${esc(l[0])}</b><span>${esc(l[1])}</span></li>`).join("")}</ul>
+      </div>
+      <div class="glass rv">
+        <p class="side__title">領域</p>
+        <ul class="domain">${P.domains.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <div class="years glass rv" data-t=".72">
+      <div class="years__head">
+        <h3>GitHub リポジトリ年表</h3>
+        <p class="label">公開 <span data-count="${P.repos.length}">${P.repos.length}</span> 件 / 日付は最終更新 / 点線はフォーク</p>
+      </div>
+      <div class="years__scroll" tabindex="0" role="group" aria-label="GitHub リポジトリ年表(横スクロール)">
+        <div class="years__grid">
+          ${years.map(y => { const rs = P.repos.filter(r => r.y === y); return `
+          <div class="years__col${rs.length ? "" : " is-empty"}">
+            <span class="years__y num">${y}</span>
+            ${rs.map(r => `<a class="repo${r.fork ? " is-fork" : ""}" href="https://github.com/${esc(P.id)}/${esc(r.name)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b><span>${esc(r.date)}${r.note ? " · " + esc(r.note) : ""}</span></a>`).join("")}
+          </div>`; }).join("")}
+        </div>
+      </div>
+    </div>
+  </section>`;
+
+  const voice = `
+  <section class="chapter wrap" id="voice" data-t=".78">
+    ${head(.78, "発信", "Talk & Writing", "登壇、記事、インタビュー。")}
+    <div class="voices">
+      ${P.voices.map(v => `<a class="voice glass rv" href="${esc(v.url)}" target="_blank" rel="noopener">
+        <span class="label">${esc(v.kind)} — ${esc(v.date)}</span>
+        <h3>${esc(v.title)}</h3>
+        <p>${esc(v.text)}</p>
+        <span class="work__link ext">${esc(v.site)}</span>
+      </a>`).join("")}
+    </div>
+  </section>`;
+
+  const contact = `
+  <section class="chapter wrap contact" id="contact" data-t=".92">
+    ${head(.92, "連絡", "Contact", "各サービスのアカウントからどうぞ。")}
+    <div class="contact__grid">
+      <p class="contact__verse">${P.verse.map(esc).join("<br>")}</p>
+      <div>
+        <ul class="links">${P.links.map(l => `<li><a href="${esc(l[2])}" target="_blank" rel="noopener"><b>${esc(l[0])}</b><span>${esc(l[1])}</span><i aria-hidden="true">↗</i></a></li>`).join("")}</ul>
+        <p class="foot"><span>${esc(P.name.join(" "))} / @${esc(P.id)}</span><span>${clock(1)} 星空 — END OF DAY</span></p>
+      </div>
+    </div>
+  </section>`;
+
+  $("#app").innerHTML = hero + intro + career + works + skill + voice + contact;
+}
+
+/* ---------- 空の状態(シェーダーと CSS フォールバックで共有) ---------- */
+const SUN_KEYS = [[0, -.045], [.10, .06], [.25, .32], [.45, .85], [.62, .32], [.74, .07], [.80, -.03], [.88, -.2], [1, -.5]];
+function sunAt(t) {
+  let el = SUN_KEYS[SUN_KEYS.length - 1][1];
+  for (let i = 1; i < SUN_KEYS.length; i++) {
+    if (t <= SUN_KEYS[i][0]) { const a = SUN_KEYS[i - 1], b = SUN_KEYS[i]; el = mix(a[1], b[1], sstep(0, 1, (t - a[0]) / (b[0] - a[0]))); break; }
+  }
+  const az = mix(-.42, .42, clamp(t / .8, 0, 1));
+  const n = Math.hypot(az, el, 1);
+  return { dir: [az / n, el / n, 1 / n], el: el / n, warm: sstep(.3, .6, t) };
+}
+function skyColors(t) {
+  const s = sunAt(t), el = s.el;
+  const day = sstep(-.12, .28, el), glow = Math.exp(-Math.abs(el) * 6) * sstep(-.35, -.02, el);
+  const m3 = (a, b, k) => a.map((v, i) => mix(v, b[i], k));
+  const warmCol = m3([1, .55, .5], [1, .4, .1], s.warm);
+  let zen = m3([.012, .02, .065], [.10, .36, .80], day);
+  let hor = m3([.03, .06, .15], [.60, .80, .96], day);
+  zen = m3(zen, m3([.30, .18, .40], [.35, .15, .30], s.warm), glow * .35);
+  const low = hor.map((v, i) => Math.min(1, v + warmCol[i] * glow * .8));
+  let bot = m3([.03, .04, .10], [.80, .87, .95], day);
+  bot = m3(bot, [.30, .18, .32], glow * .5);
+  const css = c => "rgb(" + c.map(v => Math.round(clamp(v, 0, 1) ** .9 * 255)).join(",") + ")";
+  return { top: css(zen), mid: css(m3(zen, hor, .6)), low: css(low), bot: css(bot) };
+}
+
+/* ---------- スクロール → 時刻 ---------- */
+let anchors = [], tTarget = 0, tCur = 0;
+function measure() {
+  const docH = Math.max(document.documentElement.scrollHeight, 1), vh = window.innerHeight;
+  anchors = $$("[data-t]").map(el => ({ y: el.getBoundingClientRect().top + window.scrollY, t: parseFloat(el.dataset.t) }));
+  anchors.push({ y: Math.max(docH, (anchors[anchors.length - 1] || { y: 0 }).y + 1), t: 1 });
+  anchors.sort((a, b) => a.y - b.y);
+}
+function readScroll() {
+  // 先頭では画面上端、末尾では画面下端を基準にして、0 と 1 にきちんと届かせる
+  const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  const y = window.scrollY + window.innerHeight * clamp(window.scrollY / max, 0, 1);
+  let t = 1;
+  for (let i = 0; i < anchors.length; i++) {
+    if (y <= anchors[i].y) {
+      const a = i ? anchors[i - 1] : { y: 0, t: 0 }, b = anchors[i];
+      t = mix(a.t, b.t, clamp((y - a.y) / Math.max(1, b.y - a.y), 0, 1)); break;
+    }
+  }
+  tTarget = t;
+}
+let lastPhase = "", lastClock = "";
+function applyTime(t) {
+  const ph = phaseOf(t), c = clock(t), root = document.documentElement;
+  if (ph[2] !== lastPhase) { root.dataset.phase = ph[2]; lastPhase = ph[2]; }
+  if (c !== lastClock) { $("#hudTime").textContent = c; lastClock = c; }
+  if ($("#hudPhase").textContent !== ph[1]) $("#hudPhase").textContent = ph[1];
+  // HUD: 日中は太陽、夜は月が同じ弧をのぼる
+  const f = t < .8 ? t / .8 : (t - .8) / .2 * .5;
+  const ang = Math.PI * (1 - f);
+  $("#orb").setAttribute("cx", (42 + Math.cos(ang) * 38).toFixed(1));
+  $("#orb").setAttribute("cy", (38 - Math.sin(ang) * 34).toFixed(1));
+  $("#orb").setAttribute("r", t < .8 ? 3.4 : 2.4);
+  const k = skyColors(t), st = root.style;
+  st.setProperty("--sky-top", k.top); st.setProperty("--sky-mid", k.mid); st.setProperty("--sky-low", k.low); st.setProperty("--sky-bot", k.bot);
+}
+
+/* ---------- WebGL: 雲海の空 ---------- */
+const VERT = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }";
+const FRAG = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uRes; uniform float uTime; uniform float uT; uniform vec2 uPtr; uniform vec3 uSun; uniform float uWarm;
+
+float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y);
+}
+float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++){ s += a * noise(p); p = p * 2.03 + vec2(17.1, 9.2); a *= .5; } return s; }
+float fbm2(vec2 p){ return .62 * noise(p) + .38 * noise(p * 2.03 + vec2(17.1, 9.2)); }
+
+vec3 warmCol(){ return mix(vec3(1., .55, .50), vec3(1., .40, .10), uWarm); }
+
+// 空のグラデーション(太陽の円盤と星は含まない)
+vec3 skyBase(vec3 rd, float day, float glow){
+  vec3 zen = mix(vec3(.012, .02, .065), vec3(.10, .36, .80), day);
+  vec3 hor = mix(vec3(.03, .06, .15), vec3(.60, .80, .96), day);
+  float up = max(rd.y, 0.);
+  float h = pow(1. - up, 5.);
+  vec3 col = mix(zen, hor, h);
+  col = mix(col, mix(vec3(.30, .18, .40), vec3(.35, .15, .30), uWarm), glow * .35 * (1. - h));
+  float az = dot(normalize(rd.xz), normalize(uSun.xz)) * .5 + .5;
+  col += warmCol() * glow * pow(1. - up, 8.) * (.30 + .70 * pow(az, 3.));
+  return col;
+}
+
+void main(){
+  vec2 suv = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
+  float el = uSun.y;
+  float day = smoothstep(-.12, .28, el);
+  float glow = exp(-abs(el) * 6.) * smoothstep(-.35, -.02, el);
+  float night = 1. - smoothstep(-.3, -.05, el);
+
+  float pitch = mix(.10, .30, smoothstep(.80, 1., uT));
+  vec3 rd = normalize(vec3(suv.x + uPtr.x * .05, suv.y + pitch + uPtr.y * .03, 1.15));
+  vec3 sunCol = mix(warmCol(), vec3(1., .97, .90), smoothstep(0., .35, el));
+  float sd = max(dot(rd, uSun), 0.);
+  vec3 col;
+
+  if (rd.y > 0.) {
+    col = skyBase(rd, day, glow);
+    // 太陽
+    col += sunCol * (smoothstep(.9992, .9997, sd) * 1.6 + pow(sd, 260.) * .55 + pow(sd, 10.) * .22 * (day + glow));
+    // 巻雲
+    vec2 cp = rd.xz / (rd.y + .12) * 1.4 + vec2(uTime * .008, uTime * .012 + uT * 1.5);
+    float ci = smoothstep(.50, .86, fbm(cp * vec2(.55, 1.7)));
+    vec3 ciCol = mix(mix(vec3(.10, .12, .22), vec3(1.), day), warmCol() * 1.1, glow * .75);
+    col = mix(col, ciCol, ci * .42 * smoothstep(0., .14, rd.y));
+    // 星・天の川・月・流れ星
+    if (night > .01) {
+      vec2 sv = suv + uPtr * .012 + vec2(uTime * .0015, 0.);
+      float stars = 0.;
+      for (int k = 0; k < 2; k++) {
+        float sc = k == 0 ? 34. : 70.;
+        vec2 g = sv * sc, id = floor(g), f = fract(g) - .5;
+        float h = hash(id + float(k) * 31.7);
+        vec2 off = (vec2(hash(id + 3.1), hash(id + 7.7)) - .5) * .7;
+        float tw = .65 + .35 * sin(uTime * (1.2 + h * 3.) + h * 40.);
+        stars += step(k == 0 ? .90 : .86, h) * smoothstep(k == 0 ? .11 : .15, 0., length(f - off)) * tw * (k == 0 ? 1. : .55);
+      }
+      float band = exp(-pow((suv.y - suv.x * .45 - .22) * 3.2, 2.));
+      col += vec3(.45, .52, .80) * band * fbm(suv * 3. + 4.) * .16 * night;
+      col += vec3(.95, .97, 1.) * stars * night * smoothstep(0., .1, rd.y);
+      vec3 md = normalize(vec3(.16, .62, 1.));
+      float mm = dot(rd, md);
+      float moon = smoothstep(.99955, .9997, mm) - smoothstep(.99955, .9997, dot(rd, normalize(md + vec3(.011, .006, 0.)))) * .96;
+      col += vec3(1., .96, .86) * (max(moon, 0.) * 1.3 + pow(max(mm, 0.), 500.) * .22) * night;
+      float cyc = floor(uTime / 5.5), ph = fract(uTime / 5.5) / .22;
+      if (ph < 1.) {
+        vec2 st = vec2(hash(vec2(cyc, 1.)) * 1.5 - .45, .16 + hash(vec2(cyc, 5.)) * .30);
+        vec2 dr = normalize(vec2(-.86, -.36));
+        vec2 hd = st + dr * ph * .62, q = suv - hd;
+        float along = clamp(dot(q, -dr), 0., .2);
+        float dist = length(q + dr * along);
+        col += vec3(.9, .95, 1.) * smoothstep(.0035, 0., dist) * (1. - along / .2) * sin(3.1416 * ph) * night;
+      }
+    }
+  } else {
+    // 雲海: 高さの違う平面に fbm を重ねる
+    vec3 hz = skyBase(normalize(vec3(rd.x, 0.001, rd.z)), day, glow);
+    vec3 lit = mix(vec3(.12, .16, .30), vec3(1.), day);
+    lit = mix(lit, warmCol() * vec3(1., .92, .88) + .04, glow * .72);
+    vec3 shd = mix(vec3(.02, .03, .085), vec3(.47, .60, .82), day);
+    shd = mix(shd, vec3(.24, .14, .30), glow * .62);
+    vec2 cam = vec2(uTime * .02, uTime * .05 + uT * 7.);
+    vec2 sdir = normalize(uSun.xz + vec2(0., .001));
+    vec3 acc = vec3(0.); float a = 0.;
+    for (int i = 0; i < 5; i++) {
+      float fi = float(i);
+      float tt = (.42 + .2 * fi) / -rd.y;
+      vec2 p = (rd.xz * tt + cam) * .62 + fi * 7.31;
+      float n = fbm(p);
+      float dens = smoothstep(.44 - .035 * fi, .70, n) * (1. - .25 * smoothstep(20., 60., tt));
+      float lgt = clamp(.58 + (n - fbm2(p + sdir * .34)) * 2.4, 0., 1.) * mix(1., .58, fi / 4.);
+      vec3 c = mix(shd, lit, lgt);
+      c += sunCol * pow(sd, 6.) * .28 * (day * .5 + glow);
+      c = mix(hz, c, exp(-tt * .045));
+      float w = dens * (1. - a);
+      acc += c * w; a += w;
+    }
+    vec3 deep = mix(hz, shd * .9, exp(-(1.4 / -rd.y) * .045));
+    col = acc + deep * (1. - a);
+    col = mix(col, hz, smoothstep(-.035, 0., rd.y));
+  }
+  // 周辺減光とディザ
+  col *= 1. - .22 * dot(suv, suv);
+  col += (hash(gl_FragCoord.xy + fract(uTime)) - .5) / 160.;
+  gl_FragColor = vec4(pow(clamp(col, 0., 1.), vec3(.9)), 1.);
+}`;
+
+function initSky() {
+  const cv = $("#sky");
+  if (reducedMQ.matches) { cv.hidden = true; return null; }
+  let gl = null;
+  try { gl = cv.getContext("webgl", { antialias: false, alpha: false, powerPreference: "high-performance" }) || cv.getContext("experimental-webgl"); } catch (e) { gl = null; }
+  if (!gl) { cv.hidden = true; return null; }
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null; };
+  const vs = sh(gl.VERTEX_SHADER, VERT), fs = sh(gl.FRAGMENT_SHADER, FRAG);
+  if (!vs || !fs) { cv.hidden = true; return null; }
+  const pg = gl.createProgram(); gl.attachShader(pg, vs); gl.attachShader(pg, fs); gl.linkProgram(pg);
+  if (!gl.getProgramParameter(pg, gl.LINK_STATUS)) { cv.hidden = true; return null; }
+  gl.useProgram(pg);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pg, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = {}; ["uRes", "uTime", "uT", "uPtr", "uSun", "uWarm"].forEach(n => U[n] = gl.getUniformLocation(pg, n));
+  let scale = .5;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = Math.max(2, Math.round(window.innerWidth * dpr * scale)), h = Math.max(2, Math.round(window.innerHeight * dpr * scale));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
+  }
+  resize();
+  cv.addEventListener("webglcontextlost", e => { e.preventDefault(); cv.hidden = true; });
+  let slow = 0;
+  return {
+    resize,
+    draw(time, t, ptr, dt) {
+      // 重い端末では解像度を落とす
+      if (dt > 45) { if (++slow > 20 && scale > .3) { scale -= .1; slow = 0; resize(); } } else if (slow > 0) slow--;
+      const s = sunAt(t);
+      gl.uniform2f(U.uRes, cv.width, cv.height); gl.uniform1f(U.uTime, time); gl.uniform1f(U.uT, t);
+      gl.uniform2f(U.uPtr, ptr[0], ptr[1]); gl.uniform3f(U.uSun, s.dir[0], s.dir[1], s.dir[2]); gl.uniform1f(U.uWarm, s.warm);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+  };
+}
+
+/* ---------- 起動 ---------- */
+render();
+measure(); readScroll(); tCur = tTarget; applyTime(tCur);
+
+const sky = initSky();
+const ptr = [0, 0], ptrT = [0, 0];
+window.addEventListener("pointermove", e => { if (e.pointerType === "touch") return; ptrT[0] = e.clientX / window.innerWidth * 2 - 1; ptrT[1] = -(e.clientY / window.innerHeight * 2 - 1); }, { passive: true });
+window.addEventListener("scroll", readScroll, { passive: true });
+window.addEventListener("resize", () => { measure(); readScroll(); if (sky) sky.resize(); });
+window.addEventListener("load", () => { measure(); readScroll(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); readScroll(); });
+
+if (sky) {
+  let raf = 0, last = performance.now(), time = 0;
+  const frame = now => {
+    const dt = Math.min(100, now - last); last = now; time += dt / 1000;
+    tCur += (tTarget - tCur) * Math.min(1, dt / 220);
+    ptr[0] += (ptrT[0] - ptr[0]) * .05; ptr[1] += (ptrT[1] - ptr[1]) * .05;
+    applyTime(tCur);
+    sky.draw(time, tCur, ptr, dt);
+    raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+  document.addEventListener("visibilitychange", () => {
+    cancelAnimationFrame(raf);
+    if (!document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); }
+  });
+} else {
+  // 静止フォールバック: 同じ時刻色の CSS グラデーション
+  const upd = () => { tCur = tTarget; applyTime(tCur); };
+  window.addEventListener("scroll", upd, { passive: true });
+  window.addEventListener("resize", upd);
+}
+
+/* 章ナビの現在地 */
+(() => {
+  const links = $$(".top__nav a"), secs = links.map(a => $(a.getAttribute("href")));
+  const upd = () => {
+    const y = window.scrollY + window.innerHeight * .4; let cur = -1;
+    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top + window.scrollY <= y) cur = i; });
+    links.forEach((a, i) => a.setAttribute("aria-current", i === cur ? "true" : "false"));
+  };
+  window.addEventListener("scroll", upd, { passive: true }); upd();
+})();
+
+/* 出現とカウントアップ(動きを減らす設定では何もしない) */
+if (!reducedMQ.matches && "IntersectionObserver" in window) {
+  const vh = window.innerHeight;
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    e.target.classList.remove("is-wait"); io.unobserve(e.target);
+    $$("[data-count]", e.target).forEach(countUp);
+  }), { rootMargin: "0px 0px -8% 0px" });
+  $$(".rv").forEach(el => { if (el.getBoundingClientRect().top > vh * .9) el.classList.add("is-wait"); io.observe(el); });
+  function countUp(el) {
+    if (el.dataset.done) return; el.dataset.done = "1";
+    const to = parseFloat(el.dataset.count), t0 = performance.now(), dur = 1100;
+    const step = now => { const k = clamp((now - t0) / dur, 0, 1), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(to * e); if (k < 1) requestAnimationFrame(step); else el.textContent = to; };
+    requestAnimationFrame(step);
+  }
+}
+</script>
+</body>
+</html>
