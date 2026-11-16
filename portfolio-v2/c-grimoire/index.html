@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GRIMOIRE 守田一喜</title>
+<meta name="description" content="守田 一喜 (@moritaoy) のポートフォリオ。ゲームの裏側で動く術式を記した魔導書。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Shippori+Mincho+B1:wght@500;800&family=Shippori+Mincho:wght@400;600&display=swap">
+<style>
+/* layout: 見開きの魔導書。左に欄外(シジル・章番号・註)、右に本文。ヒーローだけ左右反転で右に大魔法陣 */
+:root{
+  color-scheme: dark;
+  --ink:#0c0a18;        /* 紫黒の地 */
+  --ink-2:#131027;      /* 一段明るい頁 */
+  --ink-3:#1b1736;      /* 札・表の地 */
+  --vellum:#e8e1cd;     /* 本文: 古い羊皮紙の白 */
+  --moon:#c5cce4;       /* 冷たい月白 */
+  --mute:#8d88a8;       /* 註・補助 */
+  --brass:#c9a55a;      /* 古い金 */
+  --brass-lo:#7a6738;
+  --phos:#5fe0c2;       /* 燐光 */
+  --ember:#e08352;      /* 火の粉 */
+  --rule:rgba(201,165,90,.26);
+  --rule-soft:rgba(197,204,228,.12);
+  --f-disp:"Shippori Mincho B1","Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  --f-body:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  --f-lat:"Cinzel","Trajan Pro","Times New Roman",serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --gut-l:max(16px, env(safe-area-inset-left, 0px));
+  --gut-r:max(16px, env(safe-area-inset-right, 0px));
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--ink);color:var(--vellum);
+  font-family:var(--f-body);font-size:16px;line-height:1.95;letter-spacing:.02em;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background-image:
+    radial-gradient(900px 700px at 88% -6%, rgba(88,62,160,.34), transparent 62%),
+    radial-gradient(700px 600px at -8% 38%, rgba(40,110,120,.16), transparent 60%),
+    radial-gradient(900px 800px at 70% 108%, rgba(120,84,40,.16), transparent 60%);
+  background-attachment:fixed;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));
+}
+body::after{ /* 紙の粒子 */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.11;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+a{color:var(--phos);text-decoration-thickness:1px;text-underline-offset:.22em}
+a:hover{color:#a6f3e1}
+:focus-visible{outline:2px solid var(--phos);outline-offset:3px}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3{text-wrap:balance}
+code,pre,.mono{font-family:var(--f-mono);letter-spacing:0}
+.lat{font-family:var(--f-lat);letter-spacing:.2em;text-transform:uppercase}
+.wrap{max-width:1180px;margin:0 auto;padding-left:var(--gut-l);padding-right:var(--gut-r);position:relative;z-index:2}
+
+/* ---------- 上部の栞 ---------- */
+.ribbon{position:fixed;inset:0 0 auto 0;z-index:30;padding-top:env(safe-area-inset-top,0px);
+  background:linear-gradient(rgba(12,10,24,.94),rgba(12,10,24,.78));backdrop-filter:blur(6px);border-bottom:1px solid var(--rule)}
+.ribbon__in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:52px}
+.ribbon__name{font-family:var(--f-lat);letter-spacing:.24em;font-size:.74rem;color:var(--brass);text-decoration:none;white-space:nowrap}
+.ribbon__name b{font-family:var(--f-disp);letter-spacing:.14em;color:var(--vellum);font-size:.92rem;margin-right:.7em}
+.ribbon nav{display:flex;gap:2px}
+.ribbon nav a{font-family:var(--f-lat);font-size:.78rem;letter-spacing:.08em;color:var(--mute);text-decoration:none;min-width:34px;text-align:center;padding:6px 4px;border-bottom:1px solid transparent}
+.ribbon nav a:hover,.ribbon nav a[aria-current="true"]{color:var(--brass);border-bottom-color:var(--brass)}
+.ribbon nav a.is-done{color:var(--phos)}
+
+/* ---------- ヒーロー ---------- */
+.hero{padding-block:calc(92px + env(safe-area-inset-top,0px)) 40px}
+.hero__grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,560px);gap:24px 56px;align-items:center}
+.hero__text{min-width:0}
+.eyebrow{font-family:var(--f-lat);font-size:.72rem;letter-spacing:.34em;color:var(--brass);display:flex;flex-wrap:wrap;gap:.4em 1.4em;text-transform:uppercase}
+.eyebrow span+span{color:var(--mute)}
+h1{font-family:var(--f-disp);font-weight:800;font-size:clamp(3.2rem,9.4vw,6.6rem);line-height:1.08;letter-spacing:.06em;margin-top:.28em;
+  background:linear-gradient(176deg,#fbf4dc 18%,#d9bf7f 62%,#8d733a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero__roman{margin-top:.9em;font-family:var(--f-lat);letter-spacing:.42em;font-size:.86rem;color:var(--moon);display:flex;flex-wrap:wrap;gap:.3em 1.2em}
+.hero__roman b{font-family:var(--f-mono);letter-spacing:.02em;color:var(--phos);font-weight:400}
+.hero__role{margin-top:1.3em;padding-top:1.1em;border-top:1px solid var(--rule);font-family:var(--f-lat);font-size:clamp(1rem,2.2vw,1.28rem);letter-spacing:.14em;color:var(--vellum)}
+.hero__role i{font-style:normal;color:var(--brass);margin:0 .5em}
+.hero__epi{margin-top:1.1em;font-family:var(--f-disp);font-weight:500;font-size:clamp(1.05rem,2vw,1.26rem);line-height:1.9;color:var(--vellum);max-width:30em}
+.hero__lead{margin-top:.8em;color:var(--moon);font-size:.95rem;max-width:36em}
+.hero__act{margin-top:1.8em;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px}
+.cast{font:inherit;cursor:pointer;position:relative;color:var(--ink);border:0;padding:.82em 1.7em .78em;
+  background:linear-gradient(180deg,#ecd596,#c39b4b 55%,#8f7234);font-family:var(--f-disp);font-weight:800;font-size:1.08rem;letter-spacing:.3em;
+  clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);transition:filter .2s, transform .2s}
+.cast small{font-family:var(--f-lat);font-weight:700;font-size:.66rem;letter-spacing:.3em;margin-left:.9em;opacity:.8}
+.cast:hover{filter:brightness(1.12)}
+.cast:active{transform:translateY(1px)}
+.cast[disabled]{cursor:progress;filter:saturate(.4) brightness(.8)}
+.hero__hint{font-size:.78rem;color:var(--mute);line-height:1.7;max-width:22em}
+.hero__hint kbd{font-family:var(--f-mono);font-size:.74rem;color:var(--brass);border:1px solid var(--brass-lo);padding:0 .4em}
+.circle{position:relative;width:100%;max-width:560px;aspect-ratio:1;justify-self:center}
+.circle canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.circle__cap{position:absolute;left:0;right:0;bottom:-6px;text-align:center;font-family:var(--f-lat);font-size:.6rem;letter-spacing:.32em;color:var(--brass-lo);pointer-events:none}
+
+/* 目次 = 使い魔の割当表 */
+.toc{margin-top:44px;border-top:3px double var(--rule);border-bottom:1px solid var(--rule)}
+.toc__head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 20px;padding:12px 0 8px;font-size:.76rem;color:var(--mute)}
+.toc__head b{font-family:var(--f-lat);letter-spacing:.3em;color:var(--brass);font-weight:500}
+.toc ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:36px}
+.fam{border-top:1px solid var(--rule-soft)}
+.fam a{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;align-items:baseline;gap:10px;padding:12px 0;text-decoration:none;color:inherit}
+.fam__no{font-family:var(--f-lat);color:var(--brass);font-size:.95rem;letter-spacing:.06em}
+.fam__t{min-width:0}
+.fam__t b{font-family:var(--f-disp);font-weight:800;font-size:1.06rem;letter-spacing:.14em;display:block;line-height:1.5}
+.fam__t small{display:block;font-family:var(--f-mono);font-size:.68rem;color:var(--mute);line-height:1.5;overflow-wrap:anywhere}
+.fam__s{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;color:var(--mute);border:1px solid var(--rule-soft);padding:.1em .6em;white-space:nowrap;line-height:1.7}
+.fam[data-state="run"] .fam__s{color:var(--ember);border-color:var(--ember);animation:blink 1s steps(2) infinite}
+.fam[data-state="done"] .fam__s{color:var(--phos);border-color:rgba(95,224,194,.55);box-shadow:0 0 14px rgba(95,224,194,.25)}
+.fam a:hover .fam__t b{color:var(--brass)}
+@keyframes blink{50%{opacity:.45}}
+
+/* ---------- 章(フォリオ) ---------- */
+.folio{display:grid;grid-template-columns:190px minmax(0,1fr);gap:0 52px;padding-block:84px 12px;position:relative}
+.margin{position:relative;padding-right:28px;border-right:1px solid var(--rule)}
+.margin__stick{position:sticky;top:84px;display:grid;gap:12px;justify-items:start}
+.sigil{width:132px;height:132px;display:block}
+.caput{font-family:var(--f-lat);letter-spacing:.34em;font-size:.72rem;color:var(--brass)}
+.seal{font-family:var(--f-disp);font-weight:800;font-size:.76rem;letter-spacing:.3em;color:var(--mute);border:1px solid var(--rule-soft);padding:.12em .7em .12em 1em;transition:color .6s,border-color .6s,box-shadow .6s}
+.folio[data-decoded="1"] .seal{color:var(--phos);border-color:rgba(95,224,194,.6);box-shadow:0 0 18px rgba(95,224,194,.22), inset 0 0 12px rgba(95,224,194,.1)}
+.gloss{font-size:.78rem;line-height:1.8;color:var(--mute);border-top:1px solid var(--rule-soft);padding-top:10px;max-width:16em}
+.gloss b{color:var(--brass);font-weight:400}
+.text{min-width:0;position:relative}
+.text::before{content:"";position:absolute;left:0;right:0;top:-28px;height:1px;background:linear-gradient(90deg,var(--phos),transparent);transform:scaleX(0);transform-origin:left;transition:transform 1.4s cubic-bezier(.2,.7,.2,1)}
+.folio[data-decoded="1"] .text::before{transform:scaleX(1)}
+.chead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 22px;margin-bottom:34px}
+.chead .lat{font-size:.76rem;color:var(--brass);flex-basis:100%}
+.chead h2{font-family:var(--f-disp);font-weight:800;font-size:clamp(2rem,5vw,3.1rem);letter-spacing:.16em;line-height:1.25}
+.chead p{color:var(--mute);font-size:.86rem}
+h3{font-family:var(--f-disp);font-weight:800;font-size:1.28rem;letter-spacing:.12em;line-height:1.6}
+.sub{display:flex;align-items:baseline;gap:14px;margin:52px 0 18px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+.sub .lat{font-size:.66rem;color:var(--brass-lo);margin-left:auto;white-space:nowrap}
+.prose{max-width:41em}
+.prose p+p{margin-top:1em}
+.drop::first-letter{font-family:var(--f-disp);font-weight:800;font-size:3.5em;float:left;line-height:.98;padding:.08em .14em 0 0;color:var(--brass)}
+.note{font-size:.8rem;color:var(--mute);line-height:1.8}
+
+/* 序: プロフィール */
+.pgrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:36px 48px;align-items:start}
+.facts{border-top:3px double var(--rule)}
+.facts div{display:grid;grid-template-columns:5.6em minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid var(--rule-soft)}
+.facts dt{font-family:var(--f-lat);font-size:.66rem;letter-spacing:.24em;color:var(--brass);padding-top:.5em}
+.facts dd{line-height:1.6}
+.facts dd small{display:block;color:var(--mute);font-size:.78rem}
+.titles{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:22px}
+.titles li{font-family:var(--f-disp);font-weight:500;font-size:.84rem;letter-spacing:.1em;padding:.2em .9em;border:1px solid var(--brass-lo);color:var(--brass);background:rgba(201,165,90,.06)}
+
+/* 年代記 */
+.chron{position:relative;margin-left:6px;border-left:1px solid var(--rule)}
+.era{position:relative;display:grid;grid-template-columns:7.2em minmax(0,1fr);gap:8px 28px;padding:0 0 44px 30px}
+.era:last-child{padding-bottom:6px}
+.era::before{content:"";position:absolute;left:-6px;top:.78em;width:11px;height:11px;transform:rotate(45deg);background:var(--ink);border:1px solid var(--brass)}
+.era--now::before{background:var(--phos);border-color:var(--phos);box-shadow:0 0 16px var(--phos)}
+.era__y{font-family:var(--f-lat);font-size:1.5rem;letter-spacing:.06em;color:var(--brass);line-height:1.5}
+.era__y small{display:block;font-family:var(--f-mono);font-size:.64rem;letter-spacing:.06em;color:var(--mute);line-height:1.5}
+.era__b{min-width:0}
+.era__b p{color:var(--moon);margin-top:.3em;max-width:38em}
+.era__b ul{margin-top:.7em;display:grid;gap:.28em}
+.era__b li{position:relative;padding-left:1.5em;font-size:.94rem;line-height:1.8}
+.era__b li::before{content:"✦";position:absolute;left:0;color:var(--brass-lo);font-size:.72em;top:.4em}
+.era__ref{margin-top:.7em;font-size:.8rem;color:var(--mute)}
+
+/* 習得術式 */
+.elems{display:flex;flex-wrap:wrap;border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.elem{flex:1 1 22%;min-width:150px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:16px 16px 14px;display:grid;gap:4px;align-content:start;background:linear-gradient(160deg,rgba(201,165,90,.05),transparent 55%)}
+.elem__g{font-family:var(--f-lat);font-weight:700;font-size:1.7rem;letter-spacing:.02em;color:var(--brass);line-height:1.2}
+.elem b{font-family:var(--f-mono);font-weight:600;font-size:.86rem}
+.elem small{font-size:.74rem;color:var(--mute);line-height:1.6}
+.schools{display:grid;gap:0;border-top:1px solid var(--rule-soft)}
+.schools li{display:grid;grid-template-columns:11em minmax(0,1fr);gap:6px 24px;padding:12px 0;border-bottom:1px solid var(--rule-soft);align-items:baseline}
+.schools b{font-family:var(--f-disp);font-weight:800;letter-spacing:.1em}
+.schools span{color:var(--moon);font-size:.92rem;line-height:1.75}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.86rem;line-height:1.65}
+th,td{text-align:left;vertical-align:top;padding:9px 14px 9px 0;border-bottom:1px solid var(--rule-soft)}
+th{font-family:var(--f-lat);font-weight:500;font-size:.64rem;letter-spacing:.24em;color:var(--brass);border-bottom:1px solid var(--rule);white-space:nowrap}
+td code,td.mono{font-size:.8rem;color:var(--vellum);white-space:nowrap}
+td{color:var(--moon)}
+td small{color:var(--mute)}
+
+/* 魔導具 */
+.opus{position:relative;border:1px solid var(--brass-lo);background:linear-gradient(180deg,rgba(27,23,54,.9),rgba(19,16,39,.9));padding:clamp(20px,3.6vw,38px)}
+.opus::before,.opus::after,.card::before{content:"";position:absolute;width:16px;height:16px;border:1px solid var(--brass);pointer-events:none}
+.opus::before{left:-4px;top:-4px;border-right:0;border-bottom:0}
+.opus::after{right:-4px;bottom:-4px;border-left:0;border-top:0}
+.opus__top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
+.opus__top .lat{font-size:.66rem;color:var(--phos)}
+.opus__name{font-family:var(--f-mono);font-weight:600;font-size:clamp(1.5rem,4.4vw,2.3rem);color:var(--vellum);line-height:1.3}
+.opus__ja{font-family:var(--f-disp);font-weight:800;letter-spacing:.3em;color:var(--brass)}
+.opus__q{margin-top:.5em;font-family:var(--f-disp);font-weight:500;color:var(--moon)}
+.opus__meta{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:14px}
+.tag{font-family:var(--f-mono);font-size:.7rem;padding:.08em .7em;border:1px solid var(--rule);color:var(--moon);line-height:1.8;white-space:nowrap}
+.opus h4,.card h4{font-family:var(--f-lat);font-weight:500;font-size:.68rem;letter-spacing:.28em;color:var(--brass);margin:30px 0 10px;text-transform:uppercase}
+.opus h4 span,.card h4 span{font-family:var(--f-body);letter-spacing:.08em;color:var(--mute);margin-left:1em;font-size:.76rem;text-transform:none}
+.feat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 36px}
+.feat li{padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:.9rem;line-height:1.75;color:var(--moon)}
+.feat b{color:var(--vellum);font-family:var(--f-disp);font-weight:800;letter-spacing:.06em;display:block}
+.arch{overflow-x:auto;border:1px solid var(--rule-soft);background:rgba(12,10,24,.6)}
+.arch svg{display:block;width:100%;min-width:640px;height:auto}
+.split{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0 36px}
+.split>div{min-width:0}
+pre{margin:0;overflow-x:auto;background:rgba(12,10,24,.7);border:1px solid var(--rule-soft);border-left:2px solid var(--brass-lo);padding:14px 16px;font-size:.78rem;line-height:1.75;color:var(--moon)}
+pre .c{color:var(--mute)} pre .k{color:var(--brass)} pre .s{color:var(--phos)}
+.golink{display:inline-flex;align-items:center;gap:.6em;margin-top:22px;font-family:var(--f-lat);font-size:.74rem;letter-spacing:.24em;color:var(--brass);text-decoration:none;border-bottom:1px solid var(--brass-lo);padding-bottom:2px}
+.golink:hover{color:var(--phos);border-color:var(--phos)}
+.cards{display:grid;gap:0;border-top:1px solid var(--rule);margin-top:6px}
+.card{position:relative;border-bottom:1px solid var(--rule)}
+.card::before{display:none}
+.card summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:6.4em minmax(0,1fr) auto 1.4em;gap:6px 20px;align-items:baseline;padding:16px 4px}
+.card summary::-webkit-details-marker{display:none}
+.card summary:hover .card__n{color:var(--brass)}
+.card__k{font-family:var(--f-lat);font-size:.64rem;letter-spacing:.24em;color:var(--brass)}
+.card__n{font-family:var(--f-mono);font-weight:600;font-size:1.08rem;color:var(--vellum);overflow-wrap:anywhere;transition:color .2s}
+.card__n small{display:block;font-family:var(--f-body);font-weight:400;font-size:.84rem;color:var(--moon);line-height:1.7}
+.card__t{font-family:var(--f-mono);font-size:.7rem;color:var(--mute);text-align:right}
+.card__x{font-family:var(--f-lat);color:var(--brass);transition:transform .3s;justify-self:end}
+.card[open] .card__x{transform:rotate(45deg);color:var(--phos)}
+.card[open] summary{background:linear-gradient(90deg,rgba(201,165,90,.07),transparent)}
+.card__body{padding:4px 4px 30px calc(6.4em + 24px);max-width:56em}
+.card__body p{color:var(--moon);font-size:.94rem}
+.card__body p+p{margin-top:.7em}
+.card__body ol{counter-reset:s;display:grid;gap:.3em;margin-top:.4em}
+.card__body ol li{counter-increment:s;position:relative;padding-left:2.2em;font-size:.92rem;color:var(--moon);line-height:1.8}
+.card__body ol li::before{content:counter(s,upper-roman) ".";position:absolute;left:0;font-family:var(--f-lat);color:var(--brass);font-size:.8em;top:.2em}
+.card__body ul.dots li{position:relative;padding-left:1.4em;font-size:.92rem;color:var(--moon);line-height:1.8}
+.card__body ul.dots li::before{content:"✦";position:absolute;left:0;color:var(--brass-lo);font-size:.7em;top:.45em}
+.chips{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:.4em}
+
+/* 口伝 */
+.talk{display:grid;grid-template-columns:8.4em minmax(0,1fr);gap:8px 28px;padding:22px 0;border-bottom:1px solid var(--rule-soft)}
+.talk:first-of-type{border-top:3px double var(--rule)}
+.talk__k{font-family:var(--f-lat);font-size:.66rem;letter-spacing:.24em;color:var(--brass);line-height:1.9}
+.talk__k time,.talk__k small{display:block;font-family:var(--f-mono);letter-spacing:.02em;color:var(--mute);font-size:.72rem}
+.talk h3{font-size:1.14rem;letter-spacing:.06em}
+.talk p{color:var(--moon);font-size:.94rem;margin-top:.5em;max-width:40em}
+.talk ul{margin-top:.6em;display:grid;gap:.2em}
+.talk li{position:relative;padding-left:1.4em;font-size:.9rem;color:var(--moon);line-height:1.8}
+.talk li::before{content:"✦";position:absolute;left:0;color:var(--brass-lo);font-size:.7em;top:.45em}
+
+/* 契約 */
+.pacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 44px;border-top:3px double var(--rule)}
+.pact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;align-items:baseline;padding:18px 2px;border-bottom:1px solid var(--rule-soft);text-decoration:none;color:inherit}
+.pact b{font-family:var(--f-lat);font-weight:700;letter-spacing:.16em;font-size:1.06rem;color:var(--vellum)}
+.pact span{grid-column:1;font-size:.82rem;color:var(--mute);overflow-wrap:anywhere;line-height:1.6}
+.pact i{grid-row:1/3;grid-column:2;font-style:normal;color:var(--brass);font-family:var(--f-lat);transition:transform .25s}
+.pact:hover b{color:var(--brass)} .pact:hover i{transform:translate(4px,-4px);color:var(--phos)}
+.colophon{margin-top:90px;padding-top:22px;border-top:1px solid var(--rule);display:grid;gap:6px;font-size:.76rem;color:var(--mute);line-height:1.8}
+.colophon .lat{font-size:.62rem;color:var(--brass-lo)}
+
+/* ---------- 詠唱ログ ---------- */
+.con{position:fixed;z-index:35;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(350px,calc(100vw - 32px));
+  background:rgba(10,8,20,.93);border:1px solid var(--brass-lo);box-shadow:0 12px 40px rgba(0,0,0,.5);font-family:var(--f-mono)}
+.con__t{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:7px 12px;font-size:.68rem;letter-spacing:.08em;color:var(--brass)}
+.con__t:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
+.con__t b{font-family:var(--f-disp);font-weight:800;letter-spacing:.22em;font-size:.76rem}
+.con__t i{font-style:normal;margin-left:auto;color:var(--mute)}
+.con__dot{width:7px;height:7px;border-radius:50%;background:var(--brass-lo)}
+.con[data-busy="1"] .con__dot{background:var(--ember);box-shadow:0 0 10px var(--ember);animation:blink .7s steps(2) infinite}
+.con__b{height:168px;overflow-y:auto;padding:4px 12px 10px;border-top:1px solid var(--rule-soft);font-size:.68rem;line-height:1.7;color:var(--moon);overscroll-behavior:contain}
+.con[data-open="0"]{width:auto}
+.con[data-open="0"] .con__b{display:none}
+.con__b p{white-space:pre-wrap;overflow-wrap:anywhere}
+.con__b .cmd{color:var(--brass)} .con__b .ok{color:var(--phos)} .con__b .dim{color:var(--mute)}
+
+/* ---------- 演出レイヤ ---------- */
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:25;pointer-events:none}
+.arcanum{position:fixed;inset:0;z-index:60;background:radial-gradient(circle at 50% 50%,rgba(22,16,48,.96),rgba(6,5,12,.985));display:grid;place-items:center;animation:fade .5s both}
+.arcanum canvas{position:absolute;inset:0;width:100%;height:100%}
+.arcanum__in{position:relative;text-align:center;padding:64px 56px;background:radial-gradient(closest-side,rgba(8,6,16,.92) 40%,rgba(8,6,16,0));display:grid;gap:12px;justify-items:center;text-shadow:0 0 22px #0c0a18,0 0 8px #0c0a18}
+.arcanum__in b{font-family:var(--f-disp);font-weight:800;font-size:clamp(2.6rem,11vw,6rem);letter-spacing:.34em;margin-right:-.34em;color:#fbf4dc;line-height:1.2}
+.arcanum__in p{font-family:var(--f-disp);color:var(--moon);max-width:26em;font-size:.95rem}
+.arcanum__in code{color:var(--phos);font-size:.8rem}
+.arcanum button{font:inherit;font-family:var(--f-lat);letter-spacing:.3em;font-size:.72rem;cursor:pointer;background:rgba(12,10,24,.7);color:var(--brass);border:1px solid var(--brass-lo);padding:.6em 1.6em;margin-top:10px}
+.arcanum button:hover{color:var(--phos);border-color:var(--phos)}
+@keyframes fade{from{opacity:0}}
+
+/* ---------- 狭い画面 ---------- */
+@media (max-width:960px){
+  .hero__grid{grid-template-columns:minmax(0,1fr)}
+  .circle{max-width:440px;order:-1;margin-top:-8px}
+  .hero{padding-top:calc(64px + env(safe-area-inset-top,0px))}
+  .toc ol{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .folio{grid-template-columns:minmax(0,1fr);padding-top:64px}
+  .margin{border-right:0;padding:0 0 18px;margin-bottom:26px;border-bottom:1px solid var(--rule)}
+  .margin__stick{position:static;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 18px}
+  .sigil{width:84px;height:84px;grid-row:1/3}
+  .seal{justify-self:start}
+  .gloss{grid-column:1/-1;max-width:none}
+  .text::before{top:-27px}
+  .pgrid,.split{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  body{font-size:15px}
+  .ribbon__name span{display:none}
+  .ribbon nav a{min-width:28px;font-size:.72rem}
+  .toc ol{grid-template-columns:minmax(0,1fr)}
+  .era{grid-template-columns:minmax(0,1fr);padding-left:22px}
+  .era__y small{display:inline;margin-left:.8em}
+  .schools li,.talk{grid-template-columns:minmax(0,1fr)}
+  .talk__k time,.talk__k small{display:inline;margin-left:.8em}
+  .feat,.pacts{grid-template-columns:minmax(0,1fr)}
+  .card summary{grid-template-columns:minmax(0,1fr) 1.4em}
+  .card__k{grid-column:1/-1}
+  .card__t{grid-column:1;text-align:left;grid-row:3}
+  .card__x{grid-row:2;grid-column:2}
+  .card__body{padding-left:4px}
+  .hero__hint{max-width:none}
+  .con__t>span:not(.con__dot){display:none}
+  .con[data-open="1"] .con__t>span:not(.con__dot){display:inline}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="ribbon">
+  <div class="wrap ribbon__in">
+    <a class="ribbon__name" href="#top"><b id="rbName"></b><span>GRIMOIRE</span></a>
+    <nav id="rbNav" aria-label="章"></nav>
+  </div>
+</header>
+
+<main id="top"></main>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<aside class="con" id="con" data-open="1" aria-label="詠唱ログ">
+  <button class="con__t" id="conT" type="button" aria-expanded="true" aria-controls="conB"><span class="con__dot" aria-hidden="true"></span><b>詠唱ログ</b><span>INCANTATION LOG</span><i id="conI">−</i></button>
+  <div class="con__b" id="conB" role="log" aria-live="off" tabindex="0"></div>
+</aside>
+
+<script>
+/* =====================================================================
+   PROFILE — 掲載内容はすべてここを編集すれば反映される
+   (公開情報をもとにした下書き。数値・エピソードは出典にあるものだけ)
+   ===================================================================== */
+const PROFILE = {
+  name: "守田 一喜",
+  kana: "もりた かずき",
+  roman: "KAZUKI MORITA",
+  id: "moritaoy",
+  job: "Game Backend Engineer",
+  jobSub: "Tech Lead",
+  epigraph: "ゲームの裏側は、プレイヤーからは見えない。見えない場所で、毎日たしかに発動しつづける術式を書いている。",
+  lead: "『呪術廻戦 ファントムパレード』のバックエンドテックリードを経て、現在は新規タイトルを開発中。個人では、サブエージェントを並列に操る MCP サーバー「kuromajutsu」を公開している。",
+  about: [
+    "ゲームのバックエンドエンジニアです。2022年にサイバーエージェントへ新卒入社し、サムザップで『呪術廻戦 ファントムパレード』の開発・運用を担当してきました。2024年に同タイトルのバックエンドテックリードに就任し、現在は新規タイトルの開発に取り組んでいます。",
+    "土台は競技プログラミングです。会津大学コンピュータ理工学部では競技プログラミング部の部長を務め、ICPC に出場。大学2年の後半からは、フレームワークとクラウドを組み合わせた Web アプリを個人で作りはじめ、自作のオンラインジャッジ「SkyJudge」もそのひとつです。",
+    "最近は AI エージェントを道具として使いこなす方法に関心があり、Cursor や Claude Code から複数のサブエージェントを並列に起動・管理する MCP サーバー「kuromajutsu」を書いています。この魔導書の名前は、そこから取りました。"
+  ],
+  facts: [
+    ["Name", "守田 一喜", "もりた かずき / Kazuki Morita"],
+    ["Sigil", "@moritaoy", "GitHub・Qiita での ID"],
+    ["Class", "Game Backend Engineer / Tech Lead", "ゲームエンジニア(バックエンド)"],
+    ["Guild", "株式会社サムザップ", "サイバーエージェントグループ"],
+    ["Origin", "会津大学 コンピュータ理工学部", "競技プログラミング部 出身"],
+    ["Now", "新規タイトルの開発", "進行中"]
+  ],
+  titles: ["競プロ部 部長", "ICPC 出場", "AtCoder 最高レート約1800", "バックエンドテックリード", "CAGC2024 登壇"],
+  chronicle: [
+    { year: "学生時代", tag: "会津大学", title: "競技プログラミングと、はじめての Web アプリ",
+      text: "会津大学コンピュータ理工学部で競技プログラミング部に所属。大学2年の後半から、フレームワークとクラウドを組み合わせた Web アプリを個人で開発しはじめる。",
+      items: ["競技プログラミング部の部長を務める", "ICPC に出場", "AtCoder 最高レート 約1800", "自作オンラインジャッジ「SkyJudge」を開発(Django)"] },
+    { year: "2020", tag: "学外へ", title: "インターンとハッカソン",
+      text: "学外の開発現場とチーム開発を経験した年。",
+      items: ["ビズリーチのインターンに参加。成果物は Java リポジトリを解析して経験をスコア化する「JavaREPOAnalyzer」", "KONICA MINOLTA Hackathon 2020 に参加(Web サイトのコードを公開)"] },
+    { year: "2022", tag: "入社", title: "サイバーエージェント入社、サムザップ配属",
+      text: "新卒で入社。『呪術廻戦 ファントムパレード』の開発・運用を担当する。",
+      items: ["1年目、イベント機能のサーバーサイド実装に自ら立候補し、一人で担当"] },
+    { year: "2024", tag: "就任", title: "バックエンドテックリード",
+      text: "『呪術廻戦 ファントムパレード』のバックエンドテックリードに就任。",
+      items: ["2024年3月8日、CyberAgent Game Conference 2024 で「『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み」を登壇"] },
+    { year: "NOW", tag: "進行中", now: true, title: "新規タイトルの開発",
+      text: "サムザップにて、新規タイトルの開発に従事。個人では kuromajutsu と、Godot 製のゲーム「Mining Dive」を制作中。",
+      items: [] }
+  ],
+  languages: [
+    ["TS", "TypeScript", "kuromajutsu"],
+    ["Py", "Python", "SkyJudge / JavaREPOAnalyzer の解析系"],
+    ["Go", "Go", ""],
+    ["C++", "C++", "競技プログラミング"],
+    ["C#", "C#", ""],
+    ["GD", "GDScript", "Godot / Mining Dive"],
+    ["Vue", "Vue", "tournament_timer"]
+  ],
+  schools: [
+    ["ゲームバックエンド", "運用中タイトルの開発・運用。イベント機能のサーバーサイド実装を担当。"],
+    ["API 設計", "クライアントとサーバーの境界を決める仕事。"],
+    ["テスト設計", "大規模なソースを安定して開発するためのテスト実装のルールづくり。CAGC2024 の登壇テーマ。"],
+    ["運用", "リリース後のタイトルを動かしつづけること。"],
+    ["AI エージェント活用", "サブエージェントの並列起動・管理。kuromajutsu として公開。"]
+  ],
+  catalysts: [
+    ["MCP SDK (HTTP トランスポート)", "kuromajutsu", "メイン Agent との接続"],
+    ["WebSocket (ws)", "kuromajutsu", "ダッシュボードへのリアルタイム通知"],
+    ["React (CDN・ビルドなし)", "kuromajutsu", "ダッシュボード SPA"],
+    ["Docker / Docker Compose", "kuromajutsu", "テスト・ビルド用"],
+    ["Godot", "Mining Dive", "Web エクスポート"],
+    ["Django", "SkyJudge", "Web フロント"],
+    ["Spring Boot + Thymeleaf", "JavaREPOAnalyzer", "Web アプリ"],
+    ["AWS API Gateway / DynamoDB / SQS", "JavaREPOAnalyzer", "解析系の分離とキューイング"],
+    ["boto3 / GitHub API", "JavaREPOAnalyzer", "解析システム"]
+  ],
+  kuromajutsu: {
+    quote: "Cursor で subagent っぽいことをするための黒魔術",
+    text: "Cursor や Claude Code から、複数のサブ Agent を並列に起動・管理する MCP サーバー。職種ごとに Provider(cursor / claude)とモデルを指定でき、異なる Provider のモデルを混ぜて走らせられる。",
+    tags: ["TypeScript", "Node.js 20+", "MCP", "WebSocket", "React", "21 commits"],
+    url: "https://github.com/moritaoy/kuromajutsu",
+    features: [
+      ["並列 Agent 管理", "複数のサブ Agent をグループ単位で一括起動し、完了を待って状態を確認する。"],
+      ["マルチ Provider", "Cursor CLI(agent)と Claude Code CLI(claude)を職種ごとに切り替える。"],
+      ["職種ごとの設定", "kuromajutsu.config.yaml に、職種・Provider・モデルを定義する。"],
+      ["結果登録", "サブ Agent 自身が report_result で結果を登録する。"],
+      ["ヘルスチェック", "起動時に、各 Provider と textlint が使えるかを確認する。"],
+      ["文章レビュー職種", "textlint を入れると text-review 職種が使える(任意)。"],
+      ["ダッシュボード", "http://localhost:9696 で進行状況を確認できる。React の SPA、ビルド工程なし。"],
+      ["権限設定", "Claude の permissionMode は既定で権限確認をバイパス(無人実行向け)。変更も可能。"]
+    ],
+    tools: [
+      ["list_roles", "メイン Agent", "利用できる職種とモデルを確認する"],
+      ["create_group", "メイン Agent", "グループを作成する"],
+      ["run_agents", "メイン Agent", "Agent を一括起動する"],
+      ["wait_agent", "メイン Agent", "完了を待機する"],
+      ["get_agent_status", "メイン Agent", "詳細な状況を確認する"],
+      ["report_result", "サブ Agent 自身", "結果を登録する"],
+      ["delete_group", "メイン Agent", "グループを削除する"]
+    ]
+  },
+  works: [
+    { kind: "GAME", name: "Mining Dive", sub: "Godot で制作している個人制作ゲーム", tech: "Godot / GDScript",
+      body: ["Godot で制作中の個人制作ゲーム。Web 向けにエクスポートしたプレイテスト版を GitHub Pages で公開している。", "ビルドは lenda-web リポジトリの gh-pages ブランチに置いてあり、ブラウザだけで遊べる。"],
+      chips: ["Godot", "GDScript", "WebAssembly", "GitHub Pages", "14 commits"],
+      links: [["プレイテスト版を開く", "https://moritaoy.github.io/lenda-web/"], ["GitHub", "https://github.com/moritaoy/lenda-web"]] },
+    { kind: "SYSTEM", name: "JavaREPOAnalyzer", sub: "Java リポジトリを解析して、経験をスコアにする", tech: "Spring Boot / Python / AWS",
+      body: ["ビズリーチのインターン(2020)の成果物。GitHub 上の Java リポジトリを静的解析し、開発者の Java 経験を7つのカテゴリでスコア化する。リポジトリの登録、スコアの閲覧、複数ユーザーの比較がブラウザだけでできる。"],
+      listTitle: "解析の手順", list: ["すべての .java ファイルを列挙する", "各ファイルが使っているライブラリを列挙する", "ライブラリとカテゴリを対応づける辞書でカテゴリ別に数える", "カテゴリごとのスコアを計算する"],
+      dotsTitle: "スコアの前提", dots: ["リポジトリで得た経験は、使ったライブラリの種類数に比例する", "コード量も経験になるが、増えるほど伸びは鈍る(対数で効かせる)"],
+      chipsTitle: "7つのカテゴリ", chips: ["Web / Network", "Data", "Database", "Security", "Mobile", "Machine Learning", "Graphic / UI"],
+      after: "Web アプリは Spring Boot + Thymeleaf。解析は時間がかかるため Python の別システムに切り出し、API Gateway で受けたリクエストを SQS に積んで解析側がポーリングする。結果は DynamoDB に保存。並列化とスケールのための分離。",
+      links: [["GitHub", "https://github.com/moritaoy/PJ-intern-JavaREPOAnalyzer"]] },
+    { kind: "SYSTEM", name: "SkyJudge", sub: "学生時代に自作したオンラインジャッジ", tech: "Python / Django",
+      body: ["競技プログラミングの問題を解いて判定するオンラインジャッジを自作。公開しているのは Web フロントの SkyJudgeWeb で、judge・problem・user のアプリで構成している。"],
+      chips: ["Python", "Django", "6 commits"],
+      links: [["GitHub", "https://github.com/moritaoy/SkyJudgeWeb"]] },
+    { kind: "WEB APP", name: "tournament_timer", sub: "トーナメント用のタイマー", tech: "Vue",
+      body: ["Vue で制作したトーナメント用タイマー。"], chips: ["Vue"],
+      links: [["GitHub", "https://github.com/moritaoy/tournament_timer"]] },
+    { kind: "HACKATHON", name: "KMH2020-web", sub: "KONICA MINOLTA Hackathon 2020 で用いた Web サイト", tech: "JavaScript",
+      body: ["KONICA MINOLTA Hackathon 2020 で用いた Web サイトのコード。MIT ライセンスで公開。"], chips: ["JavaScript", "MIT", "5 commits"],
+      links: [["GitHub", "https://github.com/moritaoy/KMH2020-web"]] },
+    { kind: "SERVICE", name: "gmdb_tabelog_crowler", sub: "gourmori DB 向けのマイクロサービス", tech: "Microservice",
+      body: ["食べログの URL から、評価などの情報を取得して保存するマイクロサービス。gourmori DB の一部として構想したもの。"], chips: ["MIT"],
+      links: [["GitHub", "https://github.com/moritaoy/gmdb_tabelog_crowler"]] },
+    { kind: "OSS FORK", name: "grpc / library-checker-problems", sub: "フォークして読んでいる OSS", tech: "C++",
+      body: ["C ベースの gRPC 実装(grpc/grpc)と、Library Checker の問題データ(yosupo06/library-checker-problems)のフォーク。"], chips: ["C++", "Apache-2.0"],
+      links: [["grpc", "https://github.com/moritaoy/grpc"], ["library-checker-problems", "https://github.com/moritaoy/library-checker-problems"]] }
+  ],
+  repos: [
+    ["kuromajutsu", "Cursor で subagent っぽいことをするための黒魔術", "TypeScript", "2026-10"],
+    ["lenda-web", "Mining Dive web playtest build", "HTML", "2026-09"],
+    ["Git", "AI エージェント用サンドボックス", "—", "2026-11"],
+    ["tournament_timer", "トーナメント用タイマー", "Vue", "2024-08"],
+    ["gmdb_tabelog_crowler", "Micro service for gourmori DB", "—", "2023-05"],
+    ["balancer-tester", "—", "—", "2022-01"],
+    ["grpc", "The C based gRPC(fork)", "C++", "2021-06"],
+    ["simple-judge", "—", "—", "2021-01"],
+    ["KMH2020-web", "KONICA MINOLTA Hackathon 2020 の Web サイト", "JavaScript", "2020-10"],
+    ["PJ-intern-JavaREPOAnalyzer", "Internship in BizReach! Deliverables", "JavaScript", "2020-10"],
+    ["library-checker-problems", "Library Checker の問題データ(fork)", "C++", "2020-09"],
+    ["SkyJudgeWeb", "SkyJudge web front", "Python", "2020-07"],
+    ["my-first-blog", "Hello Django!!", "Python", "2020-05"],
+    ["library", "—", "—", "2019-05"]
+  ],
+  talks: [
+    { kind: "TALK", date: "2024-03-08", where: "CyberAgent Game Conference 2024",
+      title: "『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み",
+      text: "大規模なソース開発を安定して行うために、バックエンドチームでテスト実装のルールを策定して取り組んでいる。その内容を紹介した登壇。",
+      items: ["具体的にどのようなテストを実装しているか", "チーム内でどのようなことを意識して取り組んでいるか", "テストを活用した仕組みの例"],
+      url: "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024", label: "登壇資料を読む(Speaker Deck)" },
+    { kind: "ARTICLE", date: "", where: "Qiita",
+      title: "競技プログラミングは就活の役に立つ、が。",
+      text: "競技プログラミングと就職活動について書いた記事。",
+      items: [], url: "https://qiita.com/moritaoy/items/76e66499191077f857cb", label: "記事を読む(Qiita)" },
+    { kind: "INTERVIEW", date: "", where: "サイバーエージェント ゲーム事業部 エンジニア採用サイト",
+      title: "社員インタビュー",
+      text: "学生時代のこと、入社後に担当してきたこと、1年目にイベント機能のサーバーサイドへ立候補した話など。",
+      items: [], url: "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/", label: "インタビューを読む" }
+  ],
+  links: [
+    ["GitHub", "github.com/moritaoy", "https://github.com/moritaoy"],
+    ["Qiita", "qiita.com/moritaoy", "https://qiita.com/moritaoy"],
+    ["Interview", "サイバーエージェント ゲーム事業部 エンジニア採用サイト", "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/"],
+    ["Slides", "CAGC2024 登壇資料(Speaker Deck)", "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024"]
+  ]
+};
+
+/* 章と、その解読を受け持つ使い魔(演出用の職種名) */
+const CHAPTERS = [
+  { id: "profile", no: "I",   en: "Prologue",  ja: "序",       note: "術者について",   role: "scribe",     seed: 11 },
+  { id: "career",  no: "II",  en: "Chronicle", ja: "年代記",   note: "経歴",           role: "chronicler", seed: 23 },
+  { id: "skills",  no: "III", en: "Arts",      ja: "習得術式", note: "スキル",         role: "alchemist",  seed: 37 },
+  { id: "works",   no: "IV",  en: "Artifacts", ja: "魔導具",   note: "個人制作",       role: "artificer",  seed: 41 },
+  { id: "talks",   no: "V",   en: "Lore",      ja: "口伝",     note: "登壇・記事",     role: "herald",     seed: 59 },
+  { id: "contact", no: "VI",  en: "Pact",      ja: "契約",     note: "コンタクト",     role: "envoy",      seed: 67 }
+];
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ext = 'target="_blank" rel="noopener"';
+
+/* ---------- render ---------- */
+function folio(i, gloss, inner) {
+  const c = CHAPTERS[i];
+  return `
+  <section class="folio wrap" id="${c.id}" data-ch="${i}" aria-labelledby="h-${c.id}">
+    <aside class="margin"><div class="margin__stick">
+      <canvas class="sigil" data-seed="${c.seed}" data-ch="${i}" aria-hidden="true"></canvas>
+      <p class="caput">CAPUT ${c.no}</p>
+      <p class="seal" data-seal>未解読</p>
+      <p class="gloss">${gloss}</p>
+    </div></aside>
+    <div class="text">
+      <header class="chead"><span class="lat">${esc(c.en)}</span><h2 id="h-${c.id}">${esc(c.ja)}</h2><p>${esc(c.note)}</p></header>
+      ${inner}
+    </div>
+  </section>`;
+}
+const sub = (ja, en) => `<div class="sub"><h3>${esc(ja)}</h3><span class="lat">${esc(en)}</span></div>`;
+
+function archSVG() {
+  const box = (x, y, w, h, t1, t2, hi) => `
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${hi ? "#1b1736" : "#131027"}" stroke="${hi ? "#c9a55a" : "#7a6738"}" stroke-width="1"/>
+    <text x="${x + w / 2}" y="${y + (t2 ? h / 2 - 4 : h / 2 + 5)}" text-anchor="middle" fill="#e8e1cd" font-size="13.5" font-weight="700">${t1}</text>
+    ${t2 ? `<text x="${x + w / 2}" y="${y + h / 2 + 15}" text-anchor="middle" fill="#8d88a8" font-size="10.5" font-family="JetBrains Mono,monospace">${t2}</text>` : ""}`;
+  return `
+  <svg viewBox="0 0 760 318" role="img" aria-label="kuromajutsu の構成図。メイン Agent が MCP サーバーに HTTP で接続し、サーバーがサブ Agent を並列に起動する。サブ Agent は report_result で結果を返し、ダッシュボードは WebSocket で状況を受け取る。" font-family="Shippori Mincho,serif">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c9a55a"/></marker>
+      <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5fe0c2"/></marker>
+    </defs>
+    ${box(18, 112, 150, 62, "メイン Agent", "Cursor / Claude Code")}
+    <circle cx="372" cy="143" r="74" fill="none" stroke="#7a6738" stroke-width="1" stroke-dasharray="2 5"/>
+    <circle cx="372" cy="143" r="64" fill="#1b1736" stroke="#c9a55a" stroke-width="1.2"/>
+    <text x="372" y="132" text-anchor="middle" fill="#c9a55a" font-size="10" letter-spacing="3" font-family="Cinzel,serif">MCP SERVER</text>
+    <text x="372" y="153" text-anchor="middle" fill="#e8e1cd" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">kuromajutsu</text>
+    <text x="372" y="172" text-anchor="middle" fill="#8d88a8" font-size="9.5" font-family="JetBrains Mono,monospace">localhost:9696/mcp</text>
+    ${box(574, 30, 168, 52, "サブ Agent", "Cursor CLI · agent")}
+    ${box(574, 117, 168, 52, "サブ Agent", "Claude Code CLI · claude")}
+    ${box(574, 204, 168, 52, "サブ Agent", "… × N(職種ごと)")}
+    ${box(288, 252, 168, 50, "ダッシュボード", "React SPA · :9696")}
+    <path d="M168 136H296" stroke="#c9a55a" fill="none" marker-end="url(#ah)"/>
+    <text x="232" y="128" text-anchor="middle" fill="#c5cce4" font-size="10.5" font-family="JetBrains Mono,monospace">HTTP / MCP</text>
+    <text x="232" y="158" text-anchor="middle" fill="#8d88a8" font-size="10" font-family="JetBrains Mono,monospace">run_agents …</text>
+    <path d="M440 118C500 96 520 62 572 56" stroke="#c9a55a" fill="none" marker-end="url(#ah)"/>
+    <path d="M446 138H572" stroke="#c9a55a" fill="none" marker-end="url(#ah)"/>
+    <path d="M440 168C500 190 520 224 572 230" stroke="#c9a55a" fill="none" marker-end="url(#ah)"/>
+    <text x="506" y="131" text-anchor="middle" fill="#c5cce4" font-size="10.5">並列に起動</text>
+    <path d="M574 154H450" stroke="#5fe0c2" fill="none" stroke-dasharray="4 4" marker-end="url(#ap)"/>
+    <text x="512" y="169" text-anchor="middle" fill="#5fe0c2" font-size="10" font-family="JetBrains Mono,monospace">report_result</text>
+    <path d="M372 250V209" stroke="#5fe0c2" fill="none" stroke-dasharray="4 4" marker-start="url(#ap)" marker-end="url(#ap)"/>
+    <text x="382" y="234" fill="#5fe0c2" font-size="10" font-family="JetBrains Mono,monospace">WebSocket</text>
+    <text x="18" y="296" fill="#8d88a8" font-size="10.5">実線 = 指示の流れ / 破線 = 結果と状況の流れ</text>
+  </svg>`;
+}
+
+function render() {
+  const P = PROFILE, K = P.kuromajutsu;
+  $("#rbName").textContent = P.name.replace(/\s/g, "");
+  $("#rbNav").innerHTML = CHAPTERS.map((c, i) => `<a href="#${c.id}" data-nav="${i}" aria-label="${esc(c.ja)}">${c.no}</a>`).join("");
+
+  const hero = `
+  <header class="hero wrap">
+    <div class="hero__grid">
+      <div class="hero__text">
+        <p class="eyebrow"><span>Grimoire of a Game Backend Engineer</span><span>Portfolio</span></p>
+        <h1>${esc(P.name)}</h1>
+        <p class="hero__roman"><span>${esc(P.roman)}</span><b>@${esc(P.id)}</b></p>
+        <p class="hero__role">${esc(P.job)}<i>✦</i>${esc(P.jobSub)}</p>
+        <p class="hero__epi">${esc(P.epigraph)}</p>
+        <p class="hero__lead">${esc(P.lead)}</p>
+        <div class="hero__act">
+          <button class="cast" id="cast" type="button">召喚<small>SUMMON</small></button>
+          <p class="hero__hint">使い魔を6体、並列に召喚して各章を解読させます。本文は召喚しなくても読めます。<br>魔法陣を長押し、または <kbd>kuromajutsu</kbd> と打鍵。</p>
+        </div>
+      </div>
+      <div class="circle" id="circleBox">
+        <canvas id="circle" role="img" aria-label="回転する魔法陣。外周に MCP ツール名、七芒星の頂点に使用言語が刻まれている。"></canvas>
+        <p class="circle__cap">HOLD TO UNSEAL</p>
+      </div>
+    </div>
+    <nav class="toc" aria-label="目次">
+      <p class="toc__head"><b>CONTENTS &amp; FAMILIARS</b><span>目次と、各章を受け持つ使い魔(演出です。実際のツール呼び出しは行いません)</span></p>
+      <ol>
+        ${CHAPTERS.map((c, i) => `<li class="fam" data-fam="${i}" data-state="idle"><a href="#${c.id}">
+          <span class="fam__no">${c.no}</span>
+          <span class="fam__t"><b>${esc(c.ja)}</b><small>familiar-${i + 1} · ${c.role} · ${esc(c.note)}</small></span>
+          <span class="fam__s" data-s>IDLE</span></a></li>`).join("")}
+      </ol>
+    </nav>
+  </header>`;
+
+  const profile = folio(0,
+    `<b>註</b> この書は公開情報をもとにした下書き。記載の事実は、インタビュー・登壇資料・Qiita・GitHub に拠る。`,
+    `<div class="pgrid">
+      <div class="prose">${P.about.map((t, i) => `<p${i ? "" : ' class="drop"'}>${esc(t)}</p>`).join("")}</div>
+      <div>
+        <dl class="facts">${P.facts.map(f => `<div><dt>${esc(f[0])}</dt><dd>${esc(f[1])}<small>${esc(f[2])}</small></dd></div>`).join("")}</dl>
+        <ul class="titles" aria-label="称号">${P.titles.map(t => `<li>${esc(t)}</li>`).join("")}</ul>
+      </div>
+    </div>`);
+
+  const career = folio(1,
+    `<b>註</b> 年代記は古い順。上から下へ読むと現在に至る。`,
+    `<ol class="chron">${P.chronicle.map(e => `
+      <li class="era${e.now ? " era--now" : ""}">
+        <p class="era__y">${esc(e.year)}<small>${esc(e.tag)}</small></p>
+        <div class="era__b"><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p>
+          ${e.items.length ? `<ul>${e.items.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+        </div>
+      </li>`).join("")}</ol>`);
+
+  const skills = folio(2,
+    `<b>註</b> 熟練度の数値は記さない。術式は、何に使ったかで語る。`,
+    `<div class="sub" style="margin-top:0"><h3>属性 — 言語</h3><span class="lat">Elements</span></div>
+     <ul class="elems">${P.languages.map(l => `<li class="elem"><span class="elem__g" aria-hidden="true">${esc(l[0])}</span><b>${esc(l[1])}</b><small>${esc(l[2] || "—")}</small></li>`).join("")}</ul>
+     ${sub("系統 — 領域", "Schools")}
+     <ul class="schools">${P.schools.map(s => `<li><b>${esc(s[0])}</b><span>${esc(s[1])}</span></li>`).join("")}</ul>
+     ${sub("触媒 — 作品で用いた技術", "Catalysts")}
+     <div class="tscroll"><table><thead><tr><th>Catalyst</th><th>Used in</th><th>Purpose</th></tr></thead><tbody>
+       ${P.catalysts.map(c => `<tr><td class="mono">${esc(c[0])}</td><td>${esc(c[1])}</td><td><small>${esc(c[2])}</small></td></tr>`).join("")}
+     </tbody></table></div>`);
+
+  const works = folio(3,
+    `<b>註</b> 巻頭の一品は kuromajutsu。以下の札は開くと詳細が読める。`,
+    `<article class="opus">
+      <div class="opus__top"><span class="lat">Opus Magnum · MCP Server</span></div>
+      <h3 class="opus__name">kuromajutsu <span class="opus__ja">黒魔術</span></h3>
+      <p class="opus__q">「${esc(K.quote)}」</p>
+      <p class="prose" style="margin-top:.8em;color:var(--moon)">${esc(K.text)}</p>
+      <div class="opus__meta">${K.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      <h4>Circle <span>構成</span></h4>
+      <div class="arch">${archSVG()}</div>
+      <h4>Arts <span>できること</span></h4>
+      <ul class="feat">${K.features.map(f => `<li><b>${esc(f[0])}</b>${esc(f[1])}</li>`).join("")}</ul>
+      <div class="split">
+        <div>
+          <h4>Incantations <span>MCP ツール 7種(詠唱の順)</span></h4>
+          <div class="tscroll"><table><thead><tr><th>Tool</th><th>Caster</th><th>Effect</th></tr></thead><tbody>
+            ${K.tools.map(t => `<tr><td><code>${esc(t[0])}</code></td><td><small>${esc(t[1])}</small></td><td>${esc(t[2])}</td></tr>`).join("")}
+          </tbody></table></div>
+        </div>
+        <div>
+          <h4>Config <span>職種定義の例</span></h4>
+<pre aria-label="設定ファイルの例"><span class="c"># kuromajutsu.config.yaml(例)
+# 職種ごとに Provider とモデルを決める。
+# キー名はイメージ。正確な書式は README を参照。</span>
+<span class="k">roles</span>:
+  - <span class="k">id</span>: <span class="s">implementer</span>
+    <span class="k">provider</span>: <span class="s">cursor</span>
+    <span class="k">model</span>: <span class="s">&lt;model&gt;</span>
+  - <span class="k">id</span>: <span class="s">reviewer</span>
+    <span class="k">provider</span>: <span class="s">claude</span>
+    <span class="k">model</span>: <span class="s">&lt;model&gt;</span>
+  - <span class="k">id</span>: <span class="s">text-review</span>  <span class="c"># textlint 導入時</span></pre>
+          <p class="note" style="margin-top:10px">前提: Node.js 20 以上と、使う職種の Provider CLI。Docker は UI 確認やテスト・ビルド用。</p>
+        </div>
+      </div>
+      <a class="golink" href="${esc(K.url)}" ${ext}>GitHub で読む <span aria-hidden="true">↗</span></a>
+    </article>
+    ${sub("術式札 — そのほかの制作", "Cards")}
+    <div class="cards">${P.works.map((w, i) => `
+      <details class="card"${i === 0 ? " open" : ""}>
+        <summary><span class="card__k">${esc(w.kind)}</span><span class="card__n">${esc(w.name)}<small>${esc(w.sub)}</small></span><span class="card__t">${esc(w.tech)}</span><span class="card__x" aria-hidden="true">＋</span></summary>
+        <div class="card__body">
+          ${w.body.map(t => `<p>${esc(t)}</p>`).join("")}
+          ${w.list ? `<h4>${esc(w.listTitle)}</h4><ol>${w.list.map(t => `<li>${esc(t)}</li>`).join("")}</ol>` : ""}
+          ${w.dots ? `<h4>${esc(w.dotsTitle)}</h4><ul class="dots">${w.dots.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+          ${w.chipsTitle ? `<h4>${esc(w.chipsTitle)}</h4>` : ""}
+          ${w.chips ? `<div class="chips"${w.chipsTitle ? "" : ' style="margin-top:14px"'}>${w.chips.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+          ${w.after ? `<h4>構成</h4><p>${esc(w.after)}</p>` : ""}
+          <p>${w.links.map(l => `<a class="golink" style="margin-right:22px" href="${esc(l[1])}" ${ext}>${esc(l[0])} <span aria-hidden="true">↗</span></a>`).join("")}</p>
+        </div>
+      </details>`).join("")}</div>
+    ${sub("蔵書目録 — GitHub の全リポジトリ", "Catalogue · " + P.repos.length + " vols.")}
+    <div class="tscroll"><table><thead><tr><th>Repository</th><th>Description</th><th>Lang</th><th>Updated</th></tr></thead><tbody>
+      ${P.repos.map(r => `<tr><td><a href="https://github.com/${esc(P.id)}/${esc(r[0])}" ${ext}><code style="color:inherit">${esc(r[0])}</code></a></td><td>${esc(r[1])}</td><td><small>${esc(r[2])}</small></td><td class="mono"><small>${esc(r[3])}</small></td></tr>`).join("")}
+    </tbody></table></div>`);
+
+  const talks = folio(4,
+    `<b>註</b> 人前で語ったこと、書き残したこと、語られたこと。`,
+    P.talks.map(t => `
+      <article class="talk">
+        <p class="talk__k">${esc(t.kind)}${t.date ? `<time datetime="${esc(t.date)}">${esc(t.date)}</time>` : ""}<small>${esc(t.where)}</small></p>
+        <div><h3>${esc(t.title)}</h3><p>${esc(t.text)}</p>
+          ${t.items.length ? `<ul>${t.items.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+          <a class="golink" href="${esc(t.url)}" ${ext}>${esc(t.label)} <span aria-hidden="true">↗</span></a>
+        </div>
+      </article>`).join(""));
+
+  const contact = folio(5,
+    `<b>註</b> 連絡は各サービスのアカウントへ。`,
+    `<p class="prose" style="margin-bottom:26px;color:var(--moon)">ここまで読んでくださり、ありがとうございます。書いたもの・話したものは、以下に置いてあります。</p>
+     <div class="pacts">${P.links.map(l => `<a class="pact" href="${esc(l[2])}" ${ext}><b>${esc(l[0])}</b><span>${esc(l[1])}</span><i aria-hidden="true">↗</i></a>`).join("")}</div>
+     <footer class="colophon">
+       <p class="lat">Colophon</p>
+       <p>掲載内容は公開情報(サイバーエージェント ゲーム事業部 採用サイトのインタビュー、CAGC2024 登壇資料、Qiita、GitHub)をもとにした下書きです。公開前に本人が確認してください。</p>
+       <p>魔法陣はすべて Canvas 2D でその場で描いています。外周の文字は kuromajutsu の MCP ツール名、七芒星の頂点は使用言語、内側の六芒星は本書の6章です。</p>
+       <p>© ${esc(P.roman)} / @${esc(P.id)}</p>
+     </footer>`);
+
+  $("#top").innerHTML = hero + profile + career + skills + works + talks + contact;
+}
+render();
+
+/* =====================================================================
+   魔法陣 — シードから構成を決めて Canvas 2D で描く
+   ===================================================================== */
+const TAU = Math.PI * 2;
+const BR = [201, 165, 90], PH = [95, 224, 194], MO = [197, 204, 228], EM = [224, 131, 82];
+const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+const MAIN_SPEC = {
+  ticks: 120,
+  text: "LIST_ROLES ✦ CREATE_GROUP ✦ RUN_AGENTS ✦ WAIT_AGENT ✦ GET_AGENT_STATUS ✦ REPORT_RESULT ✦ DELETE_GROUP ✦ ",
+  text2: "GAME BACKEND · API · TEST · OPS · AGENT · ",
+  star: [7, 3], nodes: PROFILE.languages.map(l => l[0]),
+  inner: [6, 2], innerNodes: CHAPTERS.map(c => c.no),
+  center: "魔", dir: 1
+};
+function sigilSpec(seed, ch) {
+  const r = rng(seed), c = CHAPTERS[ch];
+  const n = [5, 7, 8, 9, 5, 7][Math.floor(r() * 6)];
+  const ks = []; for (let k = 2; k <= (n - 1) / 2; k++) ks.push(k);
+  const m = [3, 4, 6, 3, 4][Math.floor(r() * 5)];
+  const t = (c.en.toUpperCase() + " ✦ ").repeat(4);
+  return { ticks: [36, 48, 60][Math.floor(r() * 3)], text: t, star: [n, ks[Math.floor(r() * ks.length)]], nodes: null, inner: [m, m === 6 ? 2 : 1], center: c.no, dir: r() > .5 ? 1 : -1, small: true };
+}
+
+function starPath(ctx, n, k, r, rot) {
+  const g = gcd(n, k);
+  ctx.beginPath();
+  for (let j = 0; j < g; j++) {
+    const steps = n / g;
+    for (let i = 0; i <= steps; i++) {
+      const a = rot + ((j + i * k) % n) / n * TAU - Math.PI / 2;
+      const x = Math.cos(a) * r, y = Math.sin(a) * r;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+  }
+}
+function ringText(ctx, text, r, rot, size, font, color) {
+  ctx.save(); ctx.font = `${size}px ${font}`; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const n = text.length;
+  for (let i = 0; i < n; i++) {
+    if (text[i] === " ") continue;
+    ctx.save(); ctx.rotate(rot + i / n * TAU); ctx.translate(0, -r); ctx.fillText(text[i], 0, 0); ctx.restore();
+  }
+  ctx.restore();
+}
+const F_LAT = '"Cinzel","Times New Roman",serif', F_DISP = '"Shippori Mincho B1","Hiragino Mincho ProN",serif', F_MONO = '"JetBrains Mono",ui-monospace,monospace';
+
+/* 原点を中心に、半径 R の魔法陣を描く。e = 励起(0..1)、(px,py) = 視差 */
+function drawCircle(ctx, R, spec, t, e, px, py, lit) {
+  const col = mix(BR, PH, Math.max(e, lit || 0)), hi = mix(MO, [255, 255, 255], e * .5);
+  const A = .62 + e * .38, d = spec.dir, sm = spec.small;
+  const lw = Math.max(1, R / 260);
+  ctx.lineJoin = "round";
+  // 光暈
+  const g = ctx.createRadialGradient(0, 0, R * .1, 0, 0, R * 1.02);
+  g.addColorStop(0, rgba(col, .10 + e * .2)); g.addColorStop(.6, rgba(col, .03 + e * .06)); g.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R * 1.02, 0, TAU); ctx.fill();
+  // 外周の二重円と目盛り
+  ctx.strokeStyle = rgba(col, A); ctx.lineWidth = lw * 1.5;
+  ctx.beginPath(); ctx.arc(0, 0, R * .985, 0, TAU); ctx.stroke();
+  ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(0, 0, R * .955, 0, TAU); ctx.stroke();
+  ctx.save(); ctx.rotate(t * .04 * d);
+  ctx.beginPath();
+  for (let i = 0; i < spec.ticks; i++) {
+    const a = i / spec.ticks * TAU, long = i % (spec.ticks / 12) === 0, mid = i % (spec.ticks / 24 | 0 || 1) === 0;
+    const r0 = R * .955, r1 = R * (long ? .905 : mid ? .925 : .938);
+    ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+  }
+  ctx.strokeStyle = rgba(col, A * .7); ctx.stroke(); ctx.restore();
+  // 文字の輪
+  ringText(ctx, spec.text, R * (sm ? .82 : .862), -t * .07 * d, R * (sm ? .1 : .047), F_LAT, rgba(hi, .55 + e * .45));
+  ctx.strokeStyle = rgba(col, A * .8); ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.arc(0, 0, R * (sm ? .72 : .815), 0, TAU); ctx.stroke();
+  // 星形
+  const rs = R * (sm ? .72 : .815), rot = t * .1 * d;
+  ctx.save(); ctx.translate(px * .25, py * .25);
+  starPath(ctx, spec.star[0], spec.star[1], rs, rot);
+  ctx.strokeStyle = rgba(col, A); ctx.lineWidth = lw * 1.2; ctx.stroke();
+  starPath(ctx, spec.star[0], 1, rs, rot);
+  ctx.strokeStyle = rgba(col, A * .32); ctx.lineWidth = lw; ctx.stroke();
+  const n = spec.star[0];
+  for (let i = 0; i < n; i++) {
+    const a = rot + i / n * TAU - Math.PI / 2, x = Math.cos(a) * rs, y = Math.sin(a) * rs;
+    if (spec.nodes) {
+      const nr = R * .072;
+      ctx.beginPath(); ctx.arc(x, y, nr, 0, TAU); ctx.fillStyle = "rgba(12,10,24,.94)"; ctx.fill();
+      ctx.strokeStyle = rgba(col, A); ctx.lineWidth = lw * 1.2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, nr * .8, 0, TAU); ctx.strokeStyle = rgba(col, A * .4); ctx.lineWidth = lw * .8; ctx.stroke();
+      ctx.fillStyle = rgba(hi, .95); ctx.font = `600 ${nr * (spec.nodes[i].length > 2 ? .62 : .78)}px ${F_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(spec.nodes[i], x, y + nr * .04);
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, R * .035, 0, TAU); ctx.fillStyle = rgba(col, A); ctx.fill();
+    }
+  }
+  ctx.restore();
+  // 内陣
+  ctx.save(); ctx.translate(px * .6, py * .6);
+  const ri = R * (sm ? .4 : .47);
+  ctx.strokeStyle = rgba(col, A * .9); ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.arc(0, 0, ri, 0, TAU); ctx.stroke();
+  if (!sm) {
+    ctx.setLineDash([lw * 2, lw * 5]); ctx.beginPath(); ctx.arc(0, 0, ri * 1.08, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ringText(ctx, spec.text2.repeat(2), ri * .86, t * .12 * d, R * .034, F_LAT, rgba(col, .6 + e * .4));
+    ctx.beginPath(); ctx.arc(0, 0, ri * .74, 0, TAU); ctx.strokeStyle = rgba(col, A * .5); ctx.stroke();
+  }
+  const rp = ri * (sm ? 1 : .74), prot = -t * .16 * d;
+  starPath(ctx, spec.inner[0], spec.inner[1], rp, prot);
+  ctx.strokeStyle = rgba(mix(col, hi, .4), A); ctx.lineWidth = lw * 1.2; ctx.stroke();
+  if (spec.innerNodes) {
+    const m = spec.inner[0];
+    for (let i = 0; i < m; i++) {
+      const a = prot + i / m * TAU - Math.PI / 2, x = Math.cos(a) * rp, y = Math.sin(a) * rp, on = decoded[i];
+      ctx.beginPath(); ctx.arc(x, y, R * .036, 0, TAU); ctx.fillStyle = on ? rgba(PH, .95) : "rgba(12,10,24,.95)"; ctx.fill();
+      ctx.strokeStyle = on ? rgba(PH, 1) : rgba(col, A); ctx.stroke();
+      ctx.fillStyle = on ? "#0c0a18" : rgba(hi, .9); ctx.font = `700 ${R * .034}px ${F_LAT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(spec.innerNodes[i], x, y + R * .003);
+    }
+  }
+  ctx.restore();
+  // 中心
+  ctx.save(); ctx.translate(px, py);
+  const rc = R * (sm ? .2 : .13);
+  ctx.beginPath(); ctx.arc(0, 0, rc, 0, TAU); ctx.fillStyle = "rgba(12,10,24,.9)"; ctx.fill();
+  ctx.strokeStyle = rgba(col, A); ctx.lineWidth = lw * 1.4; ctx.stroke();
+  ctx.fillStyle = rgba(mix(col, [255, 250, 230], .5 + e * .5), 1);
+  ctx.font = sm ? `700 ${rc * (spec.center.length > 2 ? .8 : 1.05)}px ${F_LAT}` : `800 ${rc * 1.25}px ${F_DISP}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(spec.center, 0, rc * (sm ? .06 : .08));
+  ctx.restore();
+}
+
+/* ---------- 状態 ---------- */
+const decoded = CHAPTERS.map(() => false);
+let energy = .12, energyTo = .12, hold = 0, holding = false, spin = 0, last = performance.now();
+const ptr = { x: 0, y: 0, tx: 0, ty: 0 };
+const dprCap = () => Math.min(window.devicePixelRatio || 1, 2);
+
+function fit(c) {
+  const r = c.getBoundingClientRect(), d = dprCap();
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  return { w: r.width, h: r.height, d };
+}
+
+/* ---------- ヒーローの魔法陣 + 火の粉 ---------- */
+const circle = $("#circle"), cctx = circle.getContext("2d");
+const embers = Array.from({ length: 46 }, (_, i) => ({ a: Math.random() * TAU, r: .3 + Math.random() * .7, s: .2 + Math.random() * .8, p: Math.random(), k: i % 5 === 0 }));
+function drawHero(t, dt) {
+  const { w, h, d } = fit(circle);
+  cctx.setTransform(d, 0, 0, d, 0, 0); cctx.clearRect(0, 0, w, h);
+  const R = Math.min(w, h) * .47;
+  cctx.save(); cctx.translate(w / 2, h / 2);
+  if (energy > .3) { cctx.shadowColor = rgba(PH, .8); cctx.shadowBlur = 26 * (energy - .3); }
+  drawCircle(cctx, R, MAIN_SPEC, spin, energy, ptr.x * R * .05, ptr.y * R * .05);
+  cctx.shadowBlur = 0;
+  // 長押しの進行
+  if (hold > 0) { cctx.beginPath(); cctx.arc(0, 0, R * 1.02, -Math.PI / 2, -Math.PI / 2 + TAU * hold); cctx.strokeStyle = rgba(PH, .9); cctx.lineWidth = 3; cctx.stroke(); }
+  // 火の粉
+  for (const m of embers) {
+    m.p += dt * (.05 + m.s * .08) * (1 + energy * 3); if (m.p > 1) { m.p -= 1; m.a = Math.random() * TAU; }
+    const rr = R * (m.r * .9 + m.p * .25), a = m.a + m.p * .9 + spin * .05;
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr - m.p * R * .22;
+    const al = Math.sin(m.p * Math.PI) * (.25 + energy * .6);
+    cctx.fillStyle = rgba(m.k ? EM : mix(BR, PH, energy), al);
+    const s = (m.k ? 1.8 : 1.2) * (1 + energy);
+    cctx.fillRect(x - s / 2, y - s / 2, s, s);
+  }
+  cctx.restore();
+}
+
+/* ---------- 章のシジル ---------- */
+const sigils = $$(".sigil").map(c => ({ c, ctx: c.getContext("2d"), ch: +c.dataset.ch, spec: sigilSpec(+c.dataset.seed, +c.dataset.ch), vis: false, lit: 0 }));
+function drawSigil(s, t, dt) {
+  const { w, h, d } = fit(s.c);
+  s.lit += ((decoded[s.ch] ? 1 : 0) - s.lit) * Math.min(1, dt * 2.5);
+  s.ctx.setTransform(d, 0, 0, d, 0, 0); s.ctx.clearRect(0, 0, w, h);
+  s.ctx.save(); s.ctx.translate(w / 2, h / 2);
+  drawCircle(s.ctx, Math.min(w, h) * .48, s.spec, t * 1.4 + s.ch * 3, s.lit * .5, 0, 0, s.lit);
+  s.ctx.restore();
+}
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver(es => es.forEach(e => { const s = sigils.find(x => x.c === e.target); if (s) s.vis = e.isIntersecting; }), { rootMargin: "80px" });
+  sigils.forEach(s => io.observe(s.c));
+} else sigils.forEach(s => s.vis = true);
+let heroVis = true;
+if ("IntersectionObserver" in window) new IntersectionObserver(es => heroVis = es[0].isIntersecting).observe(circle);
+
+/* ---------- 演出レイヤ(使い魔・光線・粒) ---------- */
+const fx = $("#fx"), fctx = fx.getContext("2d");
+const fams = [], sparks = [];
+function circleCenter() { const r = circle.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, R: Math.min(r.width, r.height) * .47 }; }
+function chipPoint(i) { const el = $(`.fam[data-fam="${i}"] .fam__no`); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+function burst(x, y, n, c) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 40 + Math.random() * 170; sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, l: 1, c }); } }
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+function drawFx(now, dt) {
+  const d = dprCap(), w = innerWidth, h = innerHeight;
+  if (fx.width !== Math.round(w * d) || fx.height !== Math.round(h * d)) { fx.width = Math.round(w * d); fx.height = Math.round(h * d); }
+  fctx.setTransform(d, 0, 0, d, 0, 0); fctx.clearRect(0, 0, w, h);
+  if (!fams.length && !sparks.length) return;
+  const cc = circleCenter();
+  fctx.globalCompositeOperation = "lighter";
+  for (const f of fams) {
+    const age = (now - f.t0) / 1000;
+    if (f.state === "orbit") {
+      const grow = Math.min(1, age / .7), a = f.a0 + age * 1.6, rr = cc.R * (.2 + .62 * ease(grow));
+      f.x = cc.x + Math.cos(a) * rr; f.y = cc.y + Math.sin(a) * rr;
+    } else if (f.state === "fly") {
+      const k = Math.min(1, (now - f.t1) / f.dur), q = ease(k), to = chipPoint(f.i);
+      const mx = (f.sx + to.x) / 2 + (to.y - f.sy) * .25, my = (f.sy + to.y) / 2 - Math.abs(to.x - f.sx) * .18 - 60;
+      f.x = (1 - q) * (1 - q) * f.sx + 2 * (1 - q) * q * mx + q * q * to.x;
+      f.y = (1 - q) * (1 - q) * f.sy + 2 * (1 - q) * q * my + q * q * to.y;
+      if (k >= 1) { f.state = "beam"; f.t2 = now; burst(to.x, to.y, 22, PH); f.done(); }
+    } else if (f.state === "beam") {
+      const k = (now - f.t2) / 1400, to = chipPoint(f.i);
+      if (k >= 1) { f.state = "gone"; continue; }
+      fctx.strokeStyle = rgba(PH, (1 - k) * .55); fctx.lineWidth = 1.2;
+      fctx.beginPath(); fctx.moveTo(cc.x, cc.y); fctx.lineTo(to.x, to.y); fctx.stroke();
+      continue;
+    } else continue;
+    f.trail.push(f.x, f.y); if (f.trail.length > 44) f.trail.splice(0, 2);
+    for (let i = 0; i < f.trail.length - 2; i += 2) {
+      const al = i / f.trail.length;
+      fctx.strokeStyle = rgba(mix(EM, PH, al), al * .8); fctx.lineWidth = 1 + al * 2.4;
+      fctx.beginPath(); fctx.moveTo(f.trail[i], f.trail[i + 1]); fctx.lineTo(f.trail[i + 2], f.trail[i + 3]); fctx.stroke();
+    }
+    const g = fctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, 20);
+    g.addColorStop(0, "rgba(240,255,250,.95)"); g.addColorStop(.25, rgba(PH, .7)); g.addColorStop(1, rgba(PH, 0));
+    fctx.fillStyle = g; fctx.beginPath(); fctx.arc(f.x, f.y, 20, 0, TAU); fctx.fill();
+    if (Math.random() < .5) sparks.push({ x: f.x, y: f.y, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, l: .6, c: EM });
+  }
+  for (let i = fams.length - 1; i >= 0; i--) if (fams[i].state === "gone") fams.splice(i, 1);
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i]; s.l -= dt * 1.3; if (s.l <= 0) { sparks.splice(i, 1); continue; }
+    s.vy += 160 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= .985;
+    fctx.fillStyle = rgba(s.c, s.l); fctx.fillRect(s.x - 1.2, s.y - 1.2, 2.4, 2.4);
+  }
+  fctx.globalCompositeOperation = "source-over";
+}
+
+/* ---------- 隠し: 大魔法陣 ---------- */
+let arc = null;
+function openArcanum() {
+  if (arc) return;
+  const el = document.createElement("div");
+  el.className = "arcanum"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "大魔法陣");
+  el.innerHTML = `<canvas aria-hidden="true"></canvas><div class="arcanum__in"><span class="lat" style="color:var(--brass);font-size:.7rem">Arcanum Unsealed</span><b>黒魔術</b><p>「${esc(PROFILE.kuromajutsu.quote)}」</p><code>github.com/moritaoy/kuromajutsu</code><button type="button">CLOSE · ESC</button></div>`;
+  document.body.appendChild(el);
+  const c = $("canvas", el);
+  arc = { el, c, ctx: c.getContext("2d"), t0: performance.now(), prev: document.activeElement };
+  $("button", el).addEventListener("click", closeArcanum);
+  el.addEventListener("click", e => { if (e.target === el || e.target === c) closeArcanum(); });
+  $("button", el).focus();
+  log("unseal: arcanum", "ok"); log("  「kuromajutsu」— 封印を解いた", "dim");
+  if (reduced.matches) drawArcanum(performance.now(), 0);
+}
+function closeArcanum() { if (!arc) return; arc.el.remove(); const p = arc.prev; arc = null; if (p && p.focus) p.focus(); }
+function drawArcanum(now, dt) {
+  const { w, h, d } = fit(arc.c), x = arc.ctx, k = Math.min(1, (now - arc.t0) / 1400);
+  x.setTransform(d, 0, 0, d, 0, 0); x.clearRect(0, 0, w, h);
+  const R = Math.max(w, h) * .56 * (reduced.matches ? 1 : (.6 + .4 * ease(k)));
+  x.save(); x.translate(w / 2, h / 2); x.globalAlpha = reduced.matches ? .7 : k * .8;
+  drawCircle(x, R, Object.assign({}, MAIN_SPEC, { center: "" }), spin * 1.6 + 10, .85, 0, 0);
+  x.restore();
+}
+
+/* ---------- メインループ ---------- */
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  energy += (energyTo + hold * .6 - energy) * Math.min(1, dt * 3);
+  ptr.x += (ptr.tx - ptr.x) * Math.min(1, dt * 4); ptr.y += (ptr.ty - ptr.y) * Math.min(1, dt * 4);
+  const near = 1 - Math.min(1, Math.hypot(ptr.tx, ptr.ty));
+  spin += dt * (1 + near * 1.2 + energy * 9);
+  if (holding) { hold = Math.min(1, hold + dt / .75); if (hold >= 1) { holding = false; hold = 0; openArcanum(); } } else if (hold > 0) hold = Math.max(0, hold - dt * 3);
+  if (heroVis && !arc) drawHero(now, dt);
+  if (!arc) for (const s of sigils) if (s.vis) drawSigil(s, spin * .25, dt);
+  drawFx(now, dt);
+  if (arc) drawArcanum(now, dt);
+  if (!document.hidden && !reduced.matches) requestAnimationFrame(frame);
+}
+function still() { /* 静止画として1回描く(reduced motion・リサイズ・解読時) */
+  spin = 7.3; energy = energyTo;
+  drawHero(0, 0); sigils.forEach(s => { s.lit = decoded[s.ch] ? 1 : 0; drawSigil(s, 2, 0); });
+  if (arc) drawArcanum(performance.now(), 0);
+}
+function start() { last = performance.now(); if (reduced.matches) still(); else requestAnimationFrame(frame); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
+reduced.addEventListener && reduced.addEventListener("change", start);
+addEventListener("resize", () => { if (reduced.matches) still(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (reduced.matches) still(); });
+start();
+
+/* ---------- ポインター・長押し・打鍵 ---------- */
+addEventListener("pointermove", e => {
+  const r = circle.getBoundingClientRect(), R = r.width / 2 || 1;
+  ptr.tx = Math.max(-1.5, Math.min(1.5, (e.clientX - r.left - R) / R)); ptr.ty = Math.max(-1.5, Math.min(1.5, (e.clientY - r.top - R) / R));
+}, { passive: true });
+circle.addEventListener("pointerdown", e => { if (e.button) return; if (reduced.matches) { circle._t = setTimeout(openArcanum, 750); } else holding = true; });
+["pointerup", "pointerleave", "pointercancel"].forEach(n => circle.addEventListener(n, () => { holding = false; clearTimeout(circle._t); }));
+circle.addEventListener("contextmenu", e => e.preventDefault());
+let typed = "";
+addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeArcanum(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.key.length !== 1) return;
+  typed = (typed + e.key.toLowerCase()).slice(-11);
+  if (typed === "kuromajutsu") { typed = ""; openArcanum(); }
+});
+
+/* ---------- 詠唱ログ ---------- */
+const con = $("#con"), conB = $("#conB"), conT = $("#conT");
+function log(text, cls) {
+  const p = document.createElement("p"); if (cls) p.className = cls; p.textContent = text; conB.appendChild(p);
+  while (conB.children.length > 80) conB.firstChild.remove();
+  conB.scrollTop = conB.scrollHeight;
+}
+function setCon(open) { con.dataset.open = open ? "1" : "0"; conT.setAttribute("aria-expanded", open); $("#conI").textContent = open ? "−" : "＋"; if (open) conB.scrollTop = conB.scrollHeight; }
+let conUser = false;
+conT.addEventListener("click", () => { conUser = true; setCon(con.dataset.open !== "1"); });
+setCon(false);
+log("grimoire opened — " + PROFILE.name.replace(/\s/g, "") + " @" + PROFILE.id, "dim");
+log("health: canvas ok / familiars 6 idle", "dim");
+log("「召喚」で詠唱を始める", "dim");
+
+/* ---------- 召喚シーケンス ---------- */
+const castBtn = $("#cast");
+function setFam(i, state) {
+  const li = $(`.fam[data-fam="${i}"]`); li.dataset.state = state;
+  $("[data-s]", li).textContent = { idle: "IDLE", run: "RUNNING", done: "解読済" }[state];
+}
+function decode(i, on) {
+  decoded[i] = on;
+  const sec = document.getElementById(CHAPTERS[i].id);
+  if (on) sec.dataset.decoded = "1"; else delete sec.dataset.decoded;
+  $("[data-seal]", sec).textContent = on ? "解読済" : "未解読";
+  $(`[data-nav="${i}"]`).classList.toggle("is-done", on);
+}
+let casting = false, casts = 0;
+async function summon() {
+  if (casting) return; casting = true; casts++;
+  castBtn.disabled = true; con.dataset.busy = "1";
+  const autoCon = !conUser && con.dataset.open !== "1" && innerWidth >= 900;
+  if (autoCon) setCon(true);
+  CHAPTERS.forEach((_, i) => { decode(i, false); setFam(i, "idle"); });
+  const rm = reduced.matches, w = ms => rm ? Promise.resolve() : sleep(ms);
+  const gid = "g-" + String(casts).padStart(2, "0");
+  if (!rm && innerWidth < 960) circle.scrollIntoView({ block: "center", behavior: "smooth" });
+  log("> list_roles", "cmd"); await w(260);
+  log("  roles: " + CHAPTERS.map(c => c.role).join(", ")); await w(320);
+  log(`> create_group { name: "grimoire" }`, "cmd"); energyTo = .55; await w(380);
+  log("  group: " + gid); await w(260);
+  log("> run_agents × " + CHAPTERS.length, "cmd"); energyTo = 1;
+  const arrivals = [], list = [];
+  const now0 = performance.now();
+  for (let i = 0; i < CHAPTERS.length; i++) {
+    setFam(i, "run");
+    log(`  [familiar-${i + 1}] ${CHAPTERS[i].role} → ${CHAPTERS[i].no} ${CHAPTERS[i].ja} … running`);
+    if (!rm) {
+      const f = { i, state: "orbit", t0: performance.now(), a0: i / CHAPTERS.length * TAU - Math.PI / 2, trail: [], x: 0, y: 0 };
+      arrivals.push(new Promise(res => f.done = res)); fams.push(f); list.push(f);
+      const cc = circleCenter(); burst(cc.x, cc.y, 8, EM);
+    }
+    await w(170);
+  }
+  await w(1100);
+  log("> wait_agent " + gid, "cmd");
+  const order = CHAPTERS.map((_, i) => i).sort(() => Math.random() - .5);
+  for (const i of order) {
+    if (!rm) {
+      const f = list[i]; f.sx = f.x; f.sy = f.y; f.t1 = performance.now(); f.dur = 950; f.state = "fly";
+      arrivals[i].then(() => finish(i));
+    } else finish(i);
+    await w(360);
+  }
+  function finish(i) { setFam(i, "done"); decode(i, true); log(`  report_result ← familiar-${i + 1} (${CHAPTERS[i].role}) ok`, "ok"); }
+  await Promise.all(arrivals); await w(500);
+  log("> get_agent_status", "cmd"); log(`  ${CHAPTERS.length}/${CHAPTERS.length} done`); await w(300);
+  log("> delete_group " + gid, "cmd"); await w(260);
+  log(`  全6章を解読した(${((performance.now() - now0) / 1000).toFixed(1)}s)`, "ok");
+  energyTo = .22; casting = false; con.dataset.busy = "0";
+  castBtn.disabled = false; castBtn.innerHTML = "再詠唱<small>RE-CAST</small>";
+  if (rm) still();
+  if (autoCon) setTimeout(() => { if (!conUser && !casting) setCon(false); }, 3500);
+}
+castBtn.addEventListener("click", summon);
+
+/* ---------- 栞の現在地 + 章を開いたログ ---------- */
+if ("IntersectionObserver" in window) {
+  const seen = new Set();
+  const io2 = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const i = +e.target.dataset.ch;
+    $$("#rbNav a").forEach((a, j) => a.setAttribute("aria-current", j === i ? "true" : "false"));
+    if (!seen.has(i)) { seen.add(i); log(`open folio ${CHAPTERS[i].no} — ${CHAPTERS[i].ja}`, "dim"); }
+  }), { rootMargin: "-45% 0px -50% 0px" });
+  $$(".folio").forEach(s => io2.observe(s));
+}
+</script>
+</body>
+</html>
