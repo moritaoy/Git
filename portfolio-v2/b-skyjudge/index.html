@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SkyJudge 守田一喜</title>
+<meta name="description" content="守田一喜 (@moritaoy) のポートフォリオ。自作オンラインジャッジ「SkyJudge」のコンテストページとして、経歴を問題形式で読めます。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* layout: 競プロサイトの文法。上部バー + タブ、本文は「問題文 | ジャッジ盤」の2カラム。角は立てて、線と等幅数字で密度を出す */
+:root {
+  --bg: #eef4f9;
+  --surface: #ffffff;
+  --surface-2: #f5f9fc;
+  --ink: #0e2233;
+  --muted: #536879;
+  --line: #cbd9e5;
+  --line-strong: #0e2233;
+  --accent: #0a78c8;
+  --accent-soft: #d9ecfa;
+  --accent-ink: #ffffff;
+  --ac: #15803d;
+  --ac-soft: #dcf3e3;
+  --wj: #6b7a88;
+  --wj-soft: #e6ebf0;
+  --run: #a86a00;
+  --run-soft: #fbedc8;
+  --rate-blue: #1d4ed8;
+  --code-bg: #f3f7fa;
+  --tok-kw: #0a5fa8;
+  --tok-str: #a0460a;
+  --tok-num: #7a3fb0;
+  --tok-com: #6f8291;
+  --shadow: 0 1px 0 rgba(14, 34, 51, .08);
+  --f-display: "Barlow Condensed", "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --f-body: "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a141d; --surface: #111e2a; --surface-2: #162635; --ink: #e2edf6; --muted: #8ea4b7;
+    --line: #25394b; --line-strong: #9fc4e0; --accent: #4fb3fb; --accent-soft: #143651; --accent-ink: #06121c;
+    --ac: #45d483; --ac-soft: #123524; --wj: #8b9bab; --wj-soft: #1f2f3e; --run: #f2bd45; --run-soft: #3a2e0e;
+    --rate-blue: #7aa5ff; --code-bg: #0d1924; --tok-kw: #6cc0ff; --tok-str: #f0a36b; --tok-num: #c79bf2; --tok-com: #6f8699;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a141d; --surface: #111e2a; --surface-2: #162635; --ink: #e2edf6; --muted: #8ea4b7;
+  --line: #25394b; --line-strong: #9fc4e0; --accent: #4fb3fb; --accent-soft: #143651; --accent-ink: #06121c;
+  --ac: #45d483; --ac-soft: #123524; --wj: #8b9bab; --wj-soft: #1f2f3e; --run: #f2bd45; --run-soft: #3a2e0e;
+  --rate-blue: #7aa5ff; --code-bg: #0d1924; --tok-kw: #6cc0ff; --tok-str: #f0a36b; --tok-num: #c79bf2; --tok-com: #6f8699;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.75;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, p, ul, ol, dl, dd, pre, table { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+button { font: inherit; color: inherit; }
+code, kbd, .mono { font-family: var(--f-mono); }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---------- top bar ---------- */
+.bar { background: var(--surface); border-bottom: 2px solid var(--line-strong); }
+.bar__in { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand svg { width: 34px; height: 34px; flex: none; }
+.brand b { font-family: var(--f-display); font-size: 26px; font-weight: 700; letter-spacing: .02em; line-height: 1; }
+.brand b i { font-style: normal; color: var(--accent); }
+.brand small { display: block; font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; color: var(--muted); line-height: 1.3; }
+.bar__meta { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.scorebox { font-family: var(--f-mono); font-size: 12px; color: var(--muted); display: flex; align-items: baseline; gap: 6px; }
+.scorebox b { font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tbtn { border: 1px solid var(--line-strong); background: var(--surface); padding: 5px 10px; font-family: var(--f-mono); font-size: 12px; cursor: pointer; border-radius: 2px; }
+.tbtn:hover { background: var(--accent-soft); }
+
+/* ---------- tabs ---------- */
+.tabs { background: var(--surface-2); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
+.tabs__scroll { overflow-x: auto; scrollbar-width: thin; }
+.tabs ul { display: flex; gap: 0; min-width: max-content; }
+.tabs a {
+  display: flex; align-items: center; gap: 7px; padding: 9px 14px; text-decoration: none; color: var(--muted);
+  font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; white-space: nowrap;
+}
+.tabs a:hover { color: var(--ink); background: var(--accent-soft); }
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); background: var(--surface); }
+.tabs a .l { font-family: var(--f-display); font-weight: 700; font-size: 17px; line-height: 1; color: var(--ink); }
+.dot { width: 9px; height: 9px; border: 1.5px solid var(--wj); border-radius: 50%; flex: none; }
+.dot.is-ac { background: var(--ac); border-color: var(--ac); }
+.dot.is-run { background: var(--run); border-color: var(--run); }
+
+main { padding-block: 22px 56px; min-height: 60vh; }
+main:focus { outline: none; }
+
+/* ---------- shared pieces ---------- */
+.panel { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.panel__h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.panel__h h2, .panel__h h3 { font-family: var(--f-display); font-size: 19px; font-weight: 600; letter-spacing: .04em; line-height: 1.2; }
+.panel__h span { font-size: 12px; color: var(--muted); }
+.panel__b { padding: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 2px; white-space: nowrap; }
+.chip--wj { background: var(--wj-soft); color: var(--wj); }
+.chip--run { background: var(--run-soft); color: var(--run); }
+.chip--ac { background: var(--ac-soft); color: var(--ac); }
+.chip--none { border: 1px dashed var(--line); color: var(--muted); font-weight: 500; }
+.chip--lang { border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
+.chip--run::before { content: ""; width: 8px; height: 8px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--surface-2); white-space: nowrap; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+td.nw, th.nw { white-space: nowrap; }
+.note { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* ---------- contest top ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; align-items: end; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.hero h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(38px, 6.4vw, 76px); line-height: .95; letter-spacing: .005em; text-wrap: balance; text-transform: uppercase; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero__ja { margin-top: 10px; font-size: 15px; max-width: 46em; }
+.hero__ja b { font-weight: 600; }
+.timer { border: 2px solid var(--line-strong); background: var(--surface); padding: 10px 14px 12px; min-width: 250px; }
+.timer__v { font-family: var(--f-mono); font-weight: 700; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.timer__v small { font-size: .5em; font-weight: 500; color: var(--muted); margin: 0 .5em 0 .2em; }
+.timer dl { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-size: 11.5px; color: var(--muted); margin-top: 6px; font-family: var(--f-mono); }
+.timer dd { color: var(--ink); }
+.notice { margin-top: 16px; display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; background: var(--accent-soft); border-left: 4px solid var(--accent); font-size: 13.5px; }
+.notice b { font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; padding-top: 3px; white-space: nowrap; }
+.top-grid { margin-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.tasks td.l, .tasks th.l { width: 1%; }
+.tasks .letter { font-family: var(--f-display); font-weight: 700; font-size: 24px; line-height: 1; display: inline-grid; place-items: center; width: 36px; height: 36px; background: var(--accent); color: var(--accent-ink); text-decoration: none; }
+.tasks tr.is-ac .letter { background: var(--ac); }
+.tasks td { vertical-align: middle; }
+.tasks .t a { font-weight: 600; font-size: 15px; color: var(--ink); text-decoration: none; }
+.tasks .t a:hover { color: var(--accent); text-decoration: underline; }
+.tasks .t small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.tasks tbody tr:hover { background: var(--surface-2); }
+.tasks tfoot td { background: var(--surface-2); border-top: 1px solid var(--line); font-family: var(--f-mono); font-size: 12px; }
+.who { display: grid; gap: 12px; }
+.who__name { font-size: 24px; font-weight: 700; line-height: 1.25; }
+.who__name small { display: block; font-family: var(--f-mono); font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+.who__id { font-family: var(--f-mono); font-weight: 700; color: var(--rate-blue); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; font-size: 13.5px; }
+.kv dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; color: var(--muted); padding-top: 3px; white-space: nowrap; }
+.kv dd small { display: block; color: var(--muted); font-size: 12px; }
+.rate { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-weight: 700; color: var(--rate-blue); }
+.rate::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--rate-blue); }
+.howto { display: grid; gap: 6px; font-size: 13px; }
+.howto li { display: flex; gap: 8px; align-items: baseline; }
+kbd { border: 1px solid var(--line-strong); border-bottom-width: 2px; padding: 0 5px; font-size: 11px; border-radius: 2px; background: var(--surface); white-space: nowrap; }
+.side { display: grid; gap: 20px; }
+
+/* ---------- problem page ---------- */
+.p-head { display: flex; gap: 16px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.p-letter { font-family: var(--f-display); font-weight: 700; font-size: 54px; line-height: 1; width: 72px; height: 72px; flex: none; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
+.p-head.is-ac .p-letter { background: var(--ac); }
+.p-head h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.05; letter-spacing: .01em; }
+.p-head h1 small { font-family: var(--f-body); font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 10px; letter-spacing: 0; white-space: nowrap; }
+.p-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.p-meta b { color: var(--ink); font-weight: 700; }
+.p-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; margin-top: 20px; }
+.statement { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
+.sec > h2 { font-family: var(--f-display); font-weight: 600; font-size: 23px; letter-spacing: .03em; line-height: 1.2; padding-bottom: 5px; border-bottom: 2px solid var(--line-strong); margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
+.sec > h2 small { font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .06em; }
+.sec > h3 { font-size: 15px; font-weight: 700; margin: 18px 0 8px; }
+.sec p + p { margin-top: 8px; }
+.sec p { max-width: 46em; }
+.lead { font-size: 16.5px; font-weight: 500; }
+.cons { display: grid; gap: 5px; }
+.cons li { padding-left: 18px; position: relative; max-width: 50em; }
+.cons li::before { content: ""; position: absolute; left: 2px; top: .78em; width: 7px; height: 2px; background: var(--accent); }
+.cons code, .sec p code, td code { background: var(--code-bg); border: 1px solid var(--line); padding: 0 5px; font-size: .88em; border-radius: 2px; overflow-wrap: anywhere; }
+.io { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.io > div { min-width: 0; }
+.io h3 { font-family: var(--f-mono); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+.io pre { background: var(--code-bg); border: 1px solid var(--line); padding: 9px 12px; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; height: 100%; }
+.io + .io { margin-top: 12px; }
+
+.work { border: 1px solid var(--line); background: var(--surface); }
+.work + .work { margin-top: 14px; }
+.work__h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.work__h h3 { font-family: var(--f-mono); font-size: 17px; font-weight: 700; }
+.work__h .eyebrow { margin-right: auto; }
+.work__b { padding: 12px 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.work__b p { max-width: 50em; }
+.tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.tags li { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line); padding: 1px 7px; background: var(--surface-2); }
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; font-family: var(--f-mono); font-size: 12px; }
+.flow li { border: 1px solid var(--line-strong); padding: 5px 10px; background: var(--surface); display: flex; flex-direction: column; justify-content: center; }
+.flow li small { color: var(--muted); font-size: 10.5px; }
+.flow li.arrow { border: 0; padding: 0 1px; background: none; color: var(--accent); font-weight: 700; }
+.steps { counter-reset: s; display: grid; gap: 4px; }
+.steps li { counter-increment: s; padding-left: 30px; position: relative; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: .2em; width: 20px; height: 20px; display: grid; place-items: center; font-family: var(--f-mono); font-size: 11px; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
+.sub { font-size: 12px; font-weight: 700; font-family: var(--f-mono); letter-spacing: .06em; color: var(--muted); }
+.linkrow { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: var(--f-mono); font-size: 12.5px; }
+.links-list { display: grid; gap: 0; }
+.links-list li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.links-list li:last-child { border-bottom: 0; }
+.links-list a { font-weight: 600; overflow-wrap: anywhere; }
+.links-list small { display: block; color: var(--muted); font-family: var(--f-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+
+.cases td.n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.cases td.st { white-space: nowrap; text-align: right; }
+.cases td.ms { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cases tr.is-run { background: var(--run-soft); }
+.cases tr.is-ac td.c { animation: flash .5s ease-out; }
+@keyframes flash { from { background: var(--ac-soft); } to { background: transparent; } }
+
+.code { border: 1px solid var(--line); background: var(--code-bg); }
+.code__h { display: flex; justify-content: space-between; gap: 10px; padding: 5px 12px; border-bottom: 1px solid var(--line); font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.code pre { overflow-x: auto; padding: 10px 0; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.7; counter-reset: ln; tab-size: 2; }
+.code .ln { display: block; padding: 0 14px 0 0; white-space: pre; }
+.code .ln::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 38px; padding-right: 12px; text-align: right; color: var(--tok-com); user-select: none; }
+.tk-kw { color: var(--tok-kw); font-weight: 500; }
+.tk-str { color: var(--tok-str); }
+.tk-num { color: var(--tok-num); }
+.tk-com { color: var(--tok-com); font-style: italic; }
+
+/* judge panel */
+.judge { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 56px); border: 2px solid var(--line-strong); background: var(--surface); }
+.judge__h { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.judge__h h2 { font-family: var(--f-display); font-size: 19px; font-weight: 600; letter-spacing: .05em; }
+.judge__b { padding: 12px; display: grid; gap: 12px; position: relative; overflow: hidden; }
+.verdict { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.verdict__v { font-family: var(--f-display); font-weight: 700; font-size: 34px; line-height: 1; letter-spacing: .02em; color: var(--wj); }
+.judge[data-state="run"] .verdict__v { color: var(--run); }
+.judge[data-state="ac"] .verdict__v { color: var(--ac); }
+.verdict__s { font-family: var(--f-mono); font-size: 12px; color: var(--muted); text-align: right; }
+.verdict__s b { color: var(--ink); font-size: 15px; }
+.meter { height: 8px; background: var(--wj-soft); position: relative; }
+.meter i { position: absolute; inset: 0 auto 0 0; background: var(--ac); transition: width .25s ease-out; }
+.cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 4px; }
+.cells li { height: 26px; display: grid; place-items: center; font-family: var(--f-mono); font-size: 10.5px; font-weight: 700; background: var(--wj-soft); color: var(--wj); }
+.cells li.is-run { background: var(--run-soft); color: var(--run); outline: 2px solid var(--run); outline-offset: -2px; }
+.cells li.is-ac { background: var(--ac); color: var(--surface); }
+.submit { width: 100%; border: 2px solid var(--line-strong); background: var(--accent); color: var(--accent-ink); font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: .12em; padding: 9px 12px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; box-shadow: 3px 3px 0 var(--line-strong); transition: transform .08s, box-shadow .08s; }
+.submit:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--line-strong); }
+.submit:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--line-strong); }
+.submit:disabled { background: var(--wj-soft); color: var(--wj); cursor: progress; box-shadow: none; }
+.submit kbd { font-size: 11px; background: transparent; color: inherit; border-color: currentColor; letter-spacing: 0; }
+.stamp { position: absolute; left: 86px; top: 6px; font-family: var(--f-display); font-weight: 700; font-size: 40px; line-height: 1; padding: 0 10px 3px; color: var(--ac); border: 4px solid var(--ac); transform: rotate(-11deg); opacity: .16; pointer-events: none; letter-spacing: .04em; }
+.stamp.is-new { animation: stamp .55s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes stamp { 0% { transform: rotate(-11deg) scale(3.4); opacity: 0; } 55% { opacity: .95; } 100% { transform: rotate(-11deg) scale(1); opacity: .16; } }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.pager a { text-decoration: none; font-weight: 600; }
+.pager a:hover { text-decoration: underline; }
+
+/* all clear */
+.clear { margin-bottom: 18px; padding: 12px 16px; border: 2px solid var(--ac); background: var(--ac-soft); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.clear b { font-family: var(--f-display); font-size: 28px; font-weight: 700; color: var(--ac); letter-spacing: .06em; line-height: 1.1; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+
+.pagehead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
+.pagehead h1 { font-family: var(--f-display); font-weight: 700; font-size: 40px; line-height: 1.05; letter-spacing: .02em; }
+.empty { padding: 26px 14px; text-align: center; color: var(--muted); }
+.ghost { border: 1px solid var(--line-strong); background: var(--surface); padding: 4px 12px; font-size: 12.5px; cursor: pointer; border-radius: 2px; }
+.ghost:hover { background: var(--accent-soft); }
+.stand td.sc { text-align: center; white-space: nowrap; }
+.stand td.sc b { display: block; font-family: var(--f-mono); color: var(--ac); }
+.stand td.sc small { font-family: var(--f-mono); color: var(--muted); font-size: 11px; }
+
+footer { border-top: 1px solid var(--line); background: var(--surface-2); font-size: 12px; color: var(--muted); }
+footer .wrap { padding-block: 16px; display: grid; gap: 4px; }
+
+@media (max-width: 980px) {
+  .top-grid, .p-grid { grid-template-columns: minmax(0, 1fr); }
+  .judge { position: static; }
+  .p-grid .judge-col { order: -1; }
+}
+@media (max-width: 640px) {
+  body { font-size: 14.5px; }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .timer { min-width: 0; }
+  .brand small { display: none; }
+  .p-letter { width: 54px; height: 54px; font-size: 40px; }
+  .p-head h1 small { display: block; margin: 4px 0 0; white-space: normal; }
+  .links-list li { grid-template-columns: minmax(0, 1fr); }
+  th, td { padding: 7px 9px; }
+  .hide-s { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap bar__in">
+    <a class="brand" href="#top" aria-label="SkyJudge コンテストトップ">
+      <svg viewBox="0 0 34 34" aria-hidden="true">
+        <rect x="1" y="1" width="32" height="32" fill="var(--accent)"/>
+        <path d="M8 22.5h17a4 4 0 0 0 .6-7.95A6.2 6.2 0 0 0 13.7 13 4.8 4.8 0 0 0 8 22.5z" fill="var(--surface)"/>
+        <path d="M12.5 17.6l3.2 3.1 6-6.4" fill="none" stroke="var(--ac)" stroke-width="2.4" stroke-linecap="square"/>
+      </svg>
+      <span><b>Sky<i>Judge</i></b><small>MORITA KAZUKI CAREER CONTEST</small></span>
+    </a>
+    <div class="bar__meta">
+      <p class="scorebox" aria-live="polite"><span>SCORE</span><b id="barScore">0</b><span id="barMax">/ 0</span></p>
+      <button class="tbtn" id="themeBtn" type="button" aria-label="テーマを切り替える">THEME</button>
+    </div>
+  </div>
+</header>
+<nav class="tabs" aria-label="コンテストメニュー"><div class="wrap tabs__scroll"><ul id="tabs"></ul></div></nav>
+<main class="wrap" id="view" tabindex="-1"></main>
+<footer>
+  <div class="wrap">
+    <p>このページは守田一喜 (@moritaoy) のポートフォリオです。SkyJudge は学生時代に自作したオンラインジャッジの名前で、画面は今回あらためて設計したものです。実際のコンテストは開催していません。</p>
+    <p>掲載内容は公開情報(GitHub の公開リポジトリ、登壇資料の概要、インタビュー記事)をもとにした下書きです。提出時のジャッジは演出です。</p>
+  </div>
+</footer>
+<canvas id="confetti" hidden aria-hidden="true"></canvas>
+
+<script>
+/* =====================================================================
+   PROFILE — 掲載内容はここを編集すれば反映される
+   ===================================================================== */
+const PROFILE = {
+  name: "守田 一喜",
+  kana: "もりた かずき",
+  roman: "Kazuki Morita",
+  id: "moritaoy",
+  job: "Game Backend Engineer",
+  jobSub: "Tech Lead",
+  lead: "ゲームの裏側を支えるバックエンドエンジニア。『呪術廻戦 ファントムパレード』のバックエンドテックリードを経て、現在は新規タイトルを開発中。",
+  joinYear: 2022,                       // 新卒入社年(4月入社)
+  contestStart: "2022-04-01T00:00:00+09:00", // コンテストタイマーの起点
+  company: "株式会社サムザップ",
+  group: "サイバーエージェントグループ",
+  school: "会津大学 コンピュータ理工学部",
+  club: "競技プログラミング部(部長)",
+  maxRating: 1800,                      // AtCoder 最高レート(約)
+  now: "新規タイトルの開発",
+  career: [
+    { year: "学生時代", kind: "学業・競プロ", title: "会津大学 コンピュータ理工学部",
+      items: ["競技プログラミング部に所属し、部長を務める", "ICPC に出場", "AtCoder 最高レート 約1800", "オンラインジャッジ「SkyJudge」を自作", "大学2年後半から、フレームワークとクラウドを組み合わせた Web アプリを個人で開発"] },
+    { year: "2020", kind: "インターン", title: "ビズリーチのインターンに参加",
+      items: ["成果物として JavaREPOAnalyzer を開発(GitHub 上の Java リポジトリを静的解析し、経験領域を7カテゴリでスコア化)", "Web アプリと解析システムを SQS で分離する構成を設計"] },
+    { year: "2020", kind: "ハッカソン", title: "KONICA MINOLTA Hackathon 2020 に参加",
+      items: ["ハッカソンで用いた Web サイトのコードを KMH2020-web として公開"] },
+    { year: "2022", kind: "入社", title: "サイバーエージェントに新卒入社、サムザップに配属",
+      items: ["『呪術廻戦 ファントムパレード』の開発・運用を担当", "1年目、イベント機能のサーバーサイド実装に自ら立候補し、一人で担当"] },
+    { year: "2024", kind: "テックリード", title: "『呪術廻戦 ファントムパレード』バックエンドテックリードに就任",
+      items: ["2024-03-08 CAGC2024 に登壇。大規模な開発を安定して進めるための、テスト実装のルール策定と取り組みを紹介"] },
+    { year: "NOW", kind: "進行中", title: "新規タイトルの開発",
+      items: ["サムザップにて新規タイトルの開発に従事"] }
+  ],
+  languages: [
+    ["TypeScript", "kuromajutsu(MCP サーバー本体)"],
+    ["Python", "SkyJudgeWeb / JavaREPOAnalyzer の解析システム / my-first-blog"],
+    ["Go", ""],
+    ["C++", "競技プログラミング / OSS フォーク(grpc, library-checker-problems)"],
+    ["C#", ""],
+    ["GDScript", "Mining Dive(Godot)"],
+    ["Vue", "tournament_timer"],
+    ["Java", "JavaREPOAnalyzer の Web アプリ(Spring Boot)"]
+  ],
+  domains: ["ゲームバックエンド", "API 設計", "テスト設計", "運用", "AI エージェント活用"],
+  stack: [
+    ["MCP SDK(HTTP トランスポート)", "kuromajutsu", "サーバー / プロトコル"],
+    ["Node.js 20+ / WebSocket (ws)", "kuromajutsu", "サーバー / リアルタイム通信"],
+    ["React(CDN 読み込み・ビルドなしの SPA)", "kuromajutsu ダッシュボード", "フロントエンド"],
+    ["Docker / Docker Compose", "kuromajutsu のテスト・ビルド", "開発環境"],
+    ["textlint", "kuromajutsu の text-review 職種", "文章レビュー"],
+    ["Django", "SkyJudgeWeb / my-first-blog", "Web フレームワーク"],
+    ["Spring Boot + Thymeleaf", "JavaREPOAnalyzer の Web アプリ", "Web フレームワーク"],
+    ["AWS API Gateway / DynamoDB / SQS", "JavaREPOAnalyzer", "クラウド"],
+    ["boto3 / GitHub API", "JavaREPOAnalyzer の解析システム", "連携"],
+    ["Godot", "Mining Dive", "ゲームエンジン"],
+    ["Vue", "tournament_timer", "フロントエンド"]
+  ],
+  talks: [
+    { type: "登壇", date: "2024-03-08", where: "CyberAgent Game Conference 2024 (CAGC2024)",
+      title: "『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み",
+      text: "大規模な開発を安定して進めるために、バックエンドチームでテスト実装のルールを策定して取り組んでいる内容を紹介。具体的にどのようなテストを実装しているか、チームで何を意識しているか、テストを活用した仕組みの例を扱う。",
+      url: "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024", label: "登壇資料 (Speaker Deck)" },
+    { type: "記事", date: "", where: "Qiita",
+      title: "競技プログラミングは就活の役に立つ、が。",
+      text: "競技プログラミングと就職活動について書いた記事。",
+      url: "https://qiita.com/moritaoy/items/76e66499191077f857cb", label: "記事を読む (Qiita)" },
+    { type: "インタビュー", date: "", where: "サイバーエージェント ゲーム事業部 エンジニア採用サイト",
+      title: "社員インタビュー",
+      text: "経歴と担当タイトルについてのインタビュー。1年目にイベント機能のサーバーサイド実装へ立候補した話など。",
+      url: "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/", label: "インタビューを読む" }
+  ],
+  repos: [
+    ["Git", "For the Exercise of DM", "", "2026-11-10", false],
+    ["kuromajutsu", "Cursorでsubagentっぽいことをするための黒魔術", "TypeScript", "2026-10-30", false],
+    ["lenda-web", "Mining Dive web playtest build", "HTML", "2026-09-05", false],
+    ["tournament_timer", "", "Vue", "2024-08-20", false],
+    ["gmdb_tabelog_crowler", "Micro service for gourmori DB. From the URL of Tabelog, obtain and store rating and other information.", "", "2023-05-05", false],
+    ["balancer-tester", "", "", "2022-01-02", false],
+    ["grpc", "The C based gRPC (C++, Python, Ruby, Objective-C, PHP, C#)", "C++", "2021-06-08", true],
+    ["simple-judge", "", "", "2021-01-22", false],
+    ["KMH2020-web", "KONICA MINOLTA Hackathon 2020 で用いたWebサイトのコードです", "JavaScript", "2020-10-04", false],
+    ["PJ-intern-JavaREPOAnalyzer", "Internship in BizReach! Deliverables", "JavaScript", "2020-10-02", false],
+    ["library-checker-problems", "Problem data (test generators, judge solutions, tasks) of Library Checker", "C++", "2020-09-07", true],
+    ["SkyJudgeWeb", "SkyJudge web front", "Python", "2020-07-05", false],
+    ["my-first-blog", "Hello Django!!", "Python", "2020-05-13", false],
+    ["library", "", "", "2019-05-24", false]
+  ],
+  links: [
+    ["GitHub", "github.com/moritaoy", "https://github.com/moritaoy", "公開リポジトリ 14 件"],
+    ["Qiita", "qiita.com/moritaoy", "https://qiita.com/moritaoy", "技術記事"],
+    ["Interview", "サイバーエージェント ゲーム事業部 エンジニア採用サイト", "https://gameengineers.cyberagent.co.jp/interview/morita-kazuki/", "社員インタビュー"],
+    ["Slides", "CAGC2024 登壇資料(Speaker Deck)", "https://speakerdeck.com/cyberagentdevelopers/zhou-shu-hui-zhan-huantomuparedo-nobatukuendoniokerutesutoshi-zhuang-noqu-rizu-mi-cagc2024", "テスト実装の取り組み"],
+    ["Play", "Mining Dive Web プレイテスト版", "https://moritaoy.github.io/lenda-web/", "ブラウザで遊べる個人制作ゲーム"]
+  ]
+};
+
+/* ---------- helpers ---------- */
+const P = PROFILE;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (s, r = document) => r.querySelector(s);
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pad2 = n => String(n).padStart(2, "0");
+const gh = name => `https://github.com/${P.id}/${name}`;
+const ext = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+function careerYear() {
+  const now = new Date();
+  return Math.max(1, now.getFullYear() - P.joinYear + (now.getMonth() >= 3 ? 1 : 0));
+}
+
+/* ---------- 問題定義(本文は PROFILE から組み立てる) ---------- */
+const sec = (title, sub, html) => `<section class="sec"><h2>${title}${sub ? `<small>${sub}</small>` : ""}</h2>${html}</section>`;
+const cons = items => `<ul class="cons">${items.map(i => `<li>${i}</li>`).join("")}</ul>`;
+const io = pairs => pairs.map(([q, a], i) => `<div class="io"><div><h3>入力例 ${i + 1}</h3><pre>${esc(q)}</pre></div><div><h3>出力例 ${i + 1}</h3><pre>${esc(a)}</pre></div></div>`).join("");
+
+const KU_TOOLS = [
+  ["list_roles", "利用可能な職種とモデルを確認する"],
+  ["create_group", "Agent をまとめるグループを作成する"],
+  ["run_agents", "Agent を一括起動する"],
+  ["wait_agent", "完了を待機する"],
+  ["get_agent_status", "詳細な状況を確認する"],
+  ["report_result", "結果を登録する(サブ Agent 自身が実行)"],
+  ["delete_group", "グループを削除する"]
+];
+const JRA_CATS = ["Web/Network", "Data", "Database", "Security", "Mobile", "Machine Learning", "Graphic/UI"];
+
+const PROBLEMS = [
+  { id: "a", title: "Profile", ja: "プロフィール", points: 100, theme: "誰が、どこで、何をしているか", lang: "cpp", langLabel: "C++",
+    body: () => [
+      sec("問題文", "", `<p class="lead">${esc(P.name)}(${esc(P.kana)})は ${esc(P.job)} である。</p><p>${esc(P.lead)}</p><p>ネット上では <code>@${esc(P.id)}</code> という ID で活動している。この人物のプロフィールを出力せよ。</p>`),
+      sec("制約", "", cons([
+        `所属 = ${esc(P.company)}(${esc(P.group)})`,
+        `職種 = ゲームエンジニア(バックエンド)/ ${esc(P.jobSub)}`,
+        `入社 = ${P.joinYear}年4月、新卒。現在は社会人 <b class="num">${careerYear()}</b> 年目`,
+        `出身 = ${esc(P.school)}、${esc(P.club)}`,
+        `AtCoder 最高レート ≈ <span class="rate">${P.maxRating}</span>(青相当)`,
+        `現在の担当 = ${esc(P.now)}`
+      ])),
+      sec("入出力例", "", io([
+        ["何をしている人?", "ゲームのバックエンドエンジニア。\n運用タイトルのテックリードを経て、いまは新規タイトルを開発中。"],
+        ["得意な領域は?", P.domains.join(" / ")],
+        ["仕事の外では?", "個人制作。AI エージェントを並列に動かす MCP サーバー (kuromajutsu) や、\nGodot 製のゲーム (Mining Dive) を作っている。"]
+      ]))
+    ].join(""),
+    cases: () => [
+      `氏名は ${P.name}(${P.kana})、ID は @${P.id}`,
+      `職種は ${P.job}、役割は ${P.jobSub}`,
+      `所属は ${P.company}(${P.group})`,
+      `${P.joinYear}年に新卒入社。社会人 ${careerYear()} 年目`,
+      `出身は ${P.school}`,
+      `学生時代は競技プログラミング部の部長`,
+      `現在は${P.now}に従事`
+    ],
+    code: `#include <bits/stdc++.h>
+using namespace std;
+
+struct Engineer {
+  string name = "守田 一喜";
+  string id = "moritaoy";
+  string role = "Game Backend Engineer / Tech Lead";
+  string company = "Sumzap";
+  int joined = 2022;
+};
+
+int main() {
+  Engineer me;
+  cout << me.name << " (@" << me.id << ")" << endl;
+  cout << me.role << " at " << me.company << endl;
+  return 0;
+}` },
+
+  { id: "b", title: "Career", ja: "経歴", points: 300, theme: "学生時代から現在までの年表", lang: "go", langLabel: "Go",
+    body: () => [
+      sec("問題文", "", `<p class="lead">競技プログラミングで鍛えた基礎から、運用タイトルのテックリードまで。</p><p>下の年表は時系列に並んでいる。各行を古い順に読み、現在地(NOW)までたどり着け。</p>`),
+      sec("年表", "古い順", `<div class="tw panel"><table><thead><tr><th class="nw">時期</th><th class="nw hide-s">区分</th><th>出来事</th></tr></thead><tbody>${P.career.map(c => `<tr><th class="nw num">${esc(c.year)}</th><td class="nw hide-s"><span class="chip chip--lang">${esc(c.kind)}</span></td><td><b>${esc(c.title)}</b><ul class="cons" style="margin-top:4px">${c.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul></td></tr>`).join("")}</tbody></table></div>`),
+      sec("制約", "", cons([
+        "学生時代:競技プログラミング部 部長、ICPC 出場、AtCoder 最高レート 約1800",
+        "2020 ≤ インターン・ハッカソンの年 ≤ 2020",
+        "2022 年:新卒1年目でイベント機能のサーバーサイド実装に立候補し、一人で担当",
+        "2024 年:バックエンドテックリード就任、CAGC2024 登壇(2024-03-08)",
+        "NOW:新規タイトルを開発中"
+      ])),
+      sec("入出力例", "", io([
+        ["1年目に何をした?", "『呪術廻戦 ファントムパレード』のイベント機能。\nサーバーサイド実装に自分から手を挙げ、一人で担当した。"],
+        ["テックリードとして外に出したものは?", "CAGC2024 での登壇。\n大規模開発を安定させるための、テスト実装のルール策定と取り組み。"]
+      ]))
+    ].join(""),
+    cases: () => [
+      "会津大学 コンピュータ理工学部で学ぶ",
+      "競技プログラミング部の部長を務め、ICPC に出場",
+      "AtCoder の最高レートは約1800",
+      "オンラインジャッジ SkyJudge を自作",
+      "大学2年後半から、フレームワークとクラウドで Web アプリを個人開発",
+      "2020年、ビズリーチのインターンで JavaREPOAnalyzer を開発",
+      "2020年、KONICA MINOLTA Hackathon 2020 に参加",
+      "2022年、サイバーエージェントに新卒入社しサムザップへ",
+      "1年目、イベント機能のサーバーサイドを立候補して一人で担当",
+      "2024年、『呪術廻戦 ファントムパレード』バックエンドテックリードに就任",
+      "2024-03-08、CAGC2024 に登壇",
+      "現在は新規タイトルを開発中"
+    ],
+    code: `package main
+
+import "fmt"
+
+type Step struct {
+	Year  string
+	Event string
+}
+
+func main() {
+	career := []Step{
+		{"Student", "会津大学 / 競プロ部 部長 / ICPC / SkyJudge"},
+		{"2020", "ビズリーチ インターン, KONICA MINOLTA Hackathon"},
+		{"2022", "サイバーエージェント入社, サムザップ配属"},
+		{"2024", "バックエンド テックリード, CAGC2024 登壇"},
+		{"NOW", "新規タイトルの開発"},
+	}
+	for _, s := range career {
+		fmt.Printf("%-8s %s\\n", s.Year, s.Event)
+	}
+}` },
+
+  { id: "c", title: "Skills", ja: "スキル", points: 200, theme: "言語・領域・使ってきた技術", lang: "ts", langLabel: "TypeScript",
+    body: () => [
+      sec("問題文", "", `<p class="lead">仕事はゲームのバックエンド。個人制作では言語もレイヤーも選ばない。</p><p>習熟度の自己採点は載せていない。代わりに「どこで使ったか」を公開リポジトリと対応させて示す。</p>`),
+      sec("専門領域", "", `<ul class="tags">${P.domains.map(d => `<li>${esc(d)}</li>`).join("")}</ul>`),
+      sec("言語", `${P.languages.length} 言語`, `<div class="tw panel"><table><thead><tr><th>言語</th><th>使った場所(公開されているもの)</th></tr></thead><tbody>${P.languages.map(l => `<tr><th class="nw mono">${esc(l[0])}</th><td>${l[1] ? esc(l[1]) : '<span class="note">公開リポジトリでの対応なし</span>'}</td></tr>`).join("")}</tbody></table></div>`),
+      sec("フレームワーク・基盤", "個人制作・インターンで使用", `<div class="tw panel"><table><thead><tr><th>技術</th><th>使った場所</th><th class="hide-s">分類</th></tr></thead><tbody>${P.stack.map(s => `<tr><th class="mono" style="font-weight:500">${esc(s[0])}</th><td>${esc(s[1])}</td><td class="nw hide-s note">${esc(s[2])}</td></tr>`).join("")}</tbody></table></div><p class="note" style="margin-top:8px">業務で使用している技術スタックは公開情報の範囲外のため掲載していません。</p>`),
+      sec("制約", "", cons([
+        "競技プログラミング:AtCoder 最高レート 約1800、ICPC 出場",
+        "テスト設計:大規模開発を安定させるためのルール策定を CAGC2024 で発表",
+        "AI エージェント活用:Cursor / Claude Code のサブ Agent を並列管理する MCP サーバーを自作"
+      ]))
+    ].join(""),
+    cases: () => [
+      ...P.languages.map(l => `${l[0]} を使う${l[1] ? `(${l[1].split(" / ")[0].split("(")[0].trim()})` : ""}`),
+      ...P.domains.map(d => `専門領域に「${d}」を持つ`)
+    ],
+    code: `type Domain =
+  | "ゲームバックエンド" | "API 設計" | "テスト設計"
+  | "運用" | "AI エージェント活用";
+
+interface Skill {
+  language: string;
+  usedIn?: string; // 公開リポジトリとの対応
+}
+
+const skills: Skill[] = [
+  { language: "TypeScript", usedIn: "kuromajutsu" },
+  { language: "Python", usedIn: "SkyJudgeWeb" },
+  { language: "GDScript", usedIn: "Mining Dive" },
+  { language: "Vue", usedIn: "tournament_timer" },
+  { language: "Go" }, { language: "C++" }, { language: "C#" },
+];
+
+export const count = skills.length; // 7` },
+
+  { id: "d", title: "Works", ja: "個人制作", points: 400, theme: "作ったものを詳しく", lang: "python", langLabel: "Python",
+    body: () => [
+      sec("問題文", "", `<p class="lead">オンラインジャッジ、リポジトリ解析、MCP サーバー、ゲーム。</p><p>GitHub <code>@${esc(P.id)}</code> の公開リポジトリ ${P.repos.length} 件から、内容が確認できるものを詳しく記す。末尾に全件の一覧がある。</p>`),
+      sec("主な作品", "", `
+<article class="work">
+  <header class="work__h"><h3>kuromajutsu</h3><span class="eyebrow">MCP Server / 2026</span><span class="chip chip--lang">TypeScript</span></header>
+  <div class="work__b">
+    <p>Cursor や Claude Code から、複数のサブ Agent を並列に起動・管理する MCP サーバー。リポジトリの説明は「Cursorでsubagentっぽいことをするための黒魔術」。</p>
+    <ul class="cons">
+      <li><b>マルチ Provider</b>:Cursor CLI と Claude Code CLI を職種ごとに切り替え、異なる Provider のモデルを混在させて実行できる</li>
+      <li><b>職種ごとの設定</b>:<code>kuromajutsu.config.yaml</code> に職種・Provider・モデルを定義する</li>
+      <li><b>ダッシュボード</b>:<code>http://localhost:9696</code> で状況を確認。React の SPA(CDN 読み込み・ビルドなし)と WebSocket によるリアルタイム更新</li>
+      <li><b>ヘルスチェック</b>:起動時に各 Provider と textlint の利用可否を確認する</li>
+      <li><b>文章レビュー職種</b>:textlint を導入すると <code>text-review</code> 職種が使える</li>
+    </ul>
+    <p class="sub">MCP ツール(呼び出し順)</p>
+    <div class="tw"><table><thead><tr><th class="r">#</th><th>ツール</th><th>役割</th></tr></thead><tbody>${KU_TOOLS.map((t, i) => `<tr><td class="r num">${i + 1}</td><th class="nw"><code>${t[0]}</code></th><td>${esc(t[1])}</td></tr>`).join("")}</tbody></table></div>
+    <p class="sub">構成</p>
+    <ul class="flow"><li>メイン Agent<small>Cursor / Claude Code</small></li><li class="arrow" aria-hidden="true">→</li><li>MCP サーバー<small>localhost:9696/mcp</small></li><li class="arrow" aria-hidden="true">→</li><li>サブ Agent × N<small>Cursor CLI / Claude Code CLI</small></li><li class="arrow" aria-hidden="true">→</li><li>report_result<small>結果を登録</small></li></ul>
+    <ul class="tags"><li>TypeScript</li><li>Node.js 20+</li><li>MCP SDK</li><li>WebSocket (ws)</li><li>React</li><li>Docker Compose</li><li>textlint</li><li>21 commits</li></ul>
+    <p class="linkrow">${ext(gh("kuromajutsu"), "github.com/moritaoy/kuromajutsu")}</p>
+  </div>
+</article>
+<article class="work">
+  <header class="work__h"><h3>Mining Dive</h3><span class="eyebrow">Game / 2026</span><span class="chip chip--lang">Godot / GDScript</span></header>
+  <div class="work__b">
+    <p>Godot で制作している個人制作ゲーム。Web 向けにエクスポートしたプレイテスト版を GitHub Pages で公開している。</p>
+    <ul class="tags"><li>Godot</li><li>GDScript</li><li>Web エクスポート</li><li>GitHub Pages</li></ul>
+    <p class="linkrow">${ext("https://moritaoy.github.io/lenda-web/", "Web プレイテスト版を遊ぶ")}${ext(gh("lenda-web"), "github.com/moritaoy/lenda-web")}</p>
+  </div>
+</article>
+<article class="work">
+  <header class="work__h"><h3>JavaREPOAnalyzer</h3><span class="eyebrow">Intern Project / 2020</span><span class="chip chip--lang">Java / Python / AWS</span></header>
+  <div class="work__b">
+    <p>ビズリーチのインターンの成果物。GitHub 上の Java リポジトリを静的解析し、開発者の Java 経験を領域別のスコアにする Web アプリ。活動量の数字だけでは見えない「どの領域を触ってきたか」を示すことを狙った。リポジトリの登録、スコアの閲覧、複数ユーザーの比較ができる。</p>
+    <p class="sub">スコアの 7 カテゴリ</p>
+    <ul class="tags">${JRA_CATS.map(c => `<li>${c}</li>`).join("")}</ul>
+    <p class="sub">静的解析の手順</p>
+    <ol class="steps"><li>すべての <code>.java</code> ファイルを列挙する</li><li>各ファイルが使っているライブラリを列挙する</li><li>ライブラリとカテゴリを対応づけた辞書で分類し、カテゴリごとに数える</li><li>カテゴリごとのスコアを計算する</li></ol>
+    <p class="sub">スコアの考え方(2つの仮定)</p>
+    <ul class="cons"><li>リポジトリで得られる経験は、そこで使ったライブラリの種類数に比例する</li><li>コード量も経験に寄与するが、効果は逓減する(対数で反映)。開発初期のほうが、長期の保守より学びが多いという考え</li><li>登録ライブラリが少ない Mobile には係数 1/3 の調整を入れる</li></ul>
+    <p class="sub">構成</p>
+    <ul class="flow"><li>Web アプリ<small>Spring Boot + Thymeleaf</small></li><li class="arrow" aria-hidden="true">→</li><li>API Gateway</li><li class="arrow" aria-hidden="true">→</li><li>SQS<small>解析リクエストをキューに積む</small></li><li class="arrow" aria-hidden="true">→</li><li>解析システム<small>Python / boto3 / GitHub API</small></li><li class="arrow" aria-hidden="true">→</li><li>DynamoDB</li></ul>
+    <p>全ファイルの解析は時間がかかるため、解析を Web アプリから切り離し、キューをポーリングする構成にして並列処理とスケールを可能にした。</p>
+    <ul class="tags"><li>Spring Boot</li><li>Thymeleaf</li><li>Python</li><li>boto3</li><li>API Gateway</li><li>DynamoDB</li><li>SQS</li><li>14 commits</li><li>MIT</li></ul>
+    <p class="linkrow">${ext(gh("PJ-intern-JavaREPOAnalyzer"), "github.com/moritaoy/PJ-intern-JavaREPOAnalyzer")}</p>
+  </div>
+</article>
+<article class="work">
+  <header class="work__h"><h3>SkyJudge</h3><span class="eyebrow">Online Judge / 学生時代</span><span class="chip chip--lang">Python / Django</span></header>
+  <div class="work__b">
+    <p>学生時代に自作したオンラインジャッジ。このサイトの名前の由来。Web フロントの SkyJudgeWeb は <code>judge</code> / <code>problem</code> / <code>user</code> のアプリに分かれた Django プロジェクトとして公開されている。</p>
+    <ul class="tags"><li>Python</li><li>Django</li><li>6 commits</li></ul>
+    <p class="linkrow">${ext(gh("SkyJudgeWeb"), "github.com/moritaoy/SkyJudgeWeb")}</p>
+  </div>
+</article>`),
+      sec("そのほか", "", `<div class="tw panel"><table><thead><tr><th>名前</th><th>内容</th><th class="nw">技術</th></tr></thead><tbody>
+<tr><th class="nw mono">${ext(gh("tournament_timer"), "tournament_timer")}</th><td>トーナメント用のタイマー Web アプリ</td><td class="nw">Vue</td></tr>
+<tr><th class="nw mono">${ext(gh("KMH2020-web"), "KMH2020-web")}</th><td>KONICA MINOLTA Hackathon 2020 で用いた Web サイトのコード</td><td class="nw">JavaScript</td></tr>
+<tr><th class="nw mono">${ext(gh("gmdb_tabelog_crowler"), "gmdb_tabelog_crowler")}</th><td>グルメ DB 向けのマイクロサービス。食べログの URL から評価などの情報を取得して保存する</td><td class="nw note">記載なし</td></tr>
+<tr><th class="nw mono">${ext(gh("grpc"), "grpc")} <span class="chip chip--lang">fork</span></th><td>OSS フォーク(grpc/grpc)</td><td class="nw">C++</td></tr>
+<tr><th class="nw mono">${ext(gh("library-checker-problems"), "library-checker-problems")} <span class="chip chip--lang">fork</span></th><td>OSS フォーク(yosupo06/library-checker-problems)。Library Checker の問題データ</td><td class="nw">C++</td></tr>
+</tbody></table></div>`),
+      sec("公開リポジトリ一覧", `全 ${P.repos.length} 件・更新が新しい順`, `<div class="tw panel"><table><thead><tr><th>リポジトリ</th><th>説明</th><th class="nw">言語</th><th class="nw">最終更新</th></tr></thead><tbody>${P.repos.map(r => `<tr><th class="nw mono" style="font-weight:500">${ext(gh(r[0]), r[0])}${r[4] ? ' <span class="chip chip--lang">fork</span>' : ""}</th><td>${r[1] ? esc(r[1]) : '<span class="note">説明なし</span>'}</td><td class="nw">${r[2] ? esc(r[2]) : '<span class="note">—</span>'}</td><td class="nw num">${r[3]}</td></tr>`).join("")}</tbody></table></div>`)
+    ].join(""),
+    cases: () => [
+      "kuromajutsu は Cursor / Claude Code のサブ Agent を並列管理する MCP サーバー",
+      "kuromajutsu は Cursor CLI と Claude Code CLI のマルチ Provider に対応",
+      "kuromajutsu は 7 種の MCP ツールを提供する",
+      "kuromajutsu は localhost:9696 にダッシュボードを持つ",
+      "Mining Dive は Godot / GDScript 製で、Web プレイテスト版がある",
+      "JavaREPOAnalyzer は Java 経験を 7 カテゴリでスコア化する",
+      "JavaREPOAnalyzer は SQS で解析を Web アプリから分離している",
+      "SkyJudge は学生時代に自作したオンラインジャッジ",
+      "tournament_timer は Vue 製",
+      "KMH2020-web は KONICA MINOLTA Hackathon 2020 のコード",
+      "OSS フォークは grpc と library-checker-problems",
+      `GitHub の公開リポジトリは ${P.repos.length} 件`
+    ],
+    code: `from dataclasses import dataclass
+
+@dataclass
+class Work:
+    name: str
+    kind: str
+    tech: str
+
+works = [
+    Work("kuromajutsu", "MCP Server", "TypeScript"),
+    Work("Mining Dive", "Game", "Godot / GDScript"),
+    Work("JavaREPOAnalyzer", "Intern Project", "Java / Python / AWS"),
+    Work("SkyJudge", "Online Judge", "Python / Django"),
+    Work("tournament_timer", "Web App", "Vue"),
+]
+
+# 新しいものから順に出力する
+for w in works:
+    print(f"{w.name:<18} {w.kind:<15} {w.tech}")` },
+
+  { id: "e", title: "Talks & Writing", ja: "登壇と発信", points: 300, theme: "外に向けて話したこと、書いたこと", lang: "csharp", langLabel: "C#",
+    body: () => [
+      sec("問題文", "", `<p class="lead">現場で決めたルールを、外に向けて言葉にする。</p><p>登壇 1 件、記事 1 件、インタビュー 1 件。それぞれの出典を示すので、原文にあたれ。</p>`),
+      sec("一覧", "", P.talks.map(t => `<article class="work"><header class="work__h"><h3 style="font-family:var(--f-body);font-size:16px">${esc(t.title)}</h3><span class="eyebrow">${esc(t.type)}${t.date ? " / " + t.date : ""}</span></header><div class="work__b"><p class="note">${esc(t.where)}</p><p>${esc(t.text)}</p><p class="linkrow">${ext(t.url, t.label)}</p></div></article>`).join("")),
+      sec("制約", "CAGC2024 の発表について", cons([
+        "発表日 = 2024-03-08",
+        "題材 = 『呪術廻戦 ファントムパレード』のバックエンド",
+        "目的 = 大規模なソースの開発を安定して行うこと",
+        "手段 = テスト実装のルールを策定し、チームで取り組む",
+        "扱う内容 = 実装しているテストの具体例、チームで意識していること、テストを活用した仕組みの例"
+      ])),
+      sec("入出力例", "", io([
+        ["なぜテストのルールを決めた?", "大規模な開発を安定して進めるため。"],
+        ["競プロは就活の役に立つ?", "役に立つ、が。\n(続きは Qiita の記事で)"]
+      ]))
+    ].join(""),
+    cases: () => [
+      "2024-03-08、CAGC2024 に登壇した",
+      "演題は「『呪術廻戦 ファントムパレード』のバックエンドにおけるテスト実装の取り組み」",
+      "テスト実装のルールを策定し、チームで取り組んでいる",
+      "テストを活用した仕組みの例を紹介した",
+      "登壇資料は Speaker Deck で公開されている",
+      "Qiita に「競技プログラミングは就活の役に立つ、が。」を書いた",
+      "サイバーエージェント ゲーム事業部の採用サイトにインタビューが掲載されている"
+    ],
+    code: `using NUnit.Framework;
+
+public class TalksTest
+{
+    [Test]
+    public void Speaks_At_CAGC2024()
+    {
+        var talk = Talks.Find("CAGC2024");
+        Assert.AreEqual("2024-03-08", talk.Date);
+        Assert.IsTrue(talk.Title.Contains("テスト実装の取り組み"));
+    }
+
+    [Test]
+    public void Writes_About_Competitive_Programming()
+    {
+        var post = Posts.Find("Qiita");
+        Assert.IsTrue(post.Title.StartsWith("競技プログラミングは就活の役に立つ"));
+    }
+}` },
+
+  { id: "f", title: "Contact", ja: "リンク", points: 100, theme: "連絡先と各サービスへの入口", lang: "gdscript", langLabel: "GDScript",
+    body: () => [
+      sec("問題文", "", `<p class="lead">ここまで読んだら、あとはリンクを踏むだけ。</p><p>連絡は GitHub か Qiita のアカウント <code>@${esc(P.id)}</code> 宛てに。</p>`),
+      sec("リンク", `${P.links.length} 件`, `<ul class="links-list">${P.links.map(l => `<li><span class="eyebrow">${esc(l[0])}</span><span>${ext(l[2], l[1])}<small>${esc(l[3])} / ${esc(l[2].replace(/^https:\/\//, "").slice(0, 64))}${l[2].length > 72 ? "…" : ""}</small></span></li>`).join("")}</ul>`),
+      sec("制約", "", cons([
+        `ID はどのサービスでも <code>${esc(P.id)}</code>`,
+        "外部リンクは新しいタブで開く",
+        "このサイトに問い合わせフォームはない"
+      ]))
+    ].join(""),
+    cases: () => P.links.map(l => `${l[0]}:${l[1]}`),
+    code: `extends Node
+
+const ID := "moritaoy"
+
+var links := {
+	"GitHub": "github.com/moritaoy",
+	"Qiita": "qiita.com/moritaoy",
+	"Play": "moritaoy.github.io/lenda-web",
+}
+
+func _ready() -> void:
+	for service in links:
+		print("%s -> %s" % [service, links[service]])` }
+];
+const MAX = PROBLEMS.reduce((s, p) => s + p.points, 0);
+const byId = id => PROBLEMS.find(p => p.id === id);
+const ROUTES = ["top", ...PROBLEMS.map(p => p.id), "submissions", "standings"];
+
+/* ---------- 簡易シンタックスハイライト ---------- */
+const KW = {
+  cpp: "#include using namespace struct int string return cout endl main",
+  go: "package import type struct func string for range",
+  ts: "type interface const export string",
+  python: "from import class for in print str",
+  csharp: "using public class void var",
+  gdscript: "extends const var func for in print void"
+};
+function highlight(src, lang) {
+  const kw = new Set(KW[lang].split(" "));
+  const com = (lang === "python" || lang === "gdscript") ? "#[^\\n]*" : "\\/\\/[^\\n]*";
+  const re = new RegExp(`(${com})|("(?:[^"\\\\\\n]|\\\\.)*")|(\\b\\d+(?:\\.\\d+)?\\b)|([A-Za-z_#@][A-Za-z0-9_]*)`, "g");
+  let out = "", last = 0, m;
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    const t = esc(m[0]);
+    if (m[1]) out += `<span class="tk-com">${t}</span>`;
+    else if (m[2]) out += `<span class="tk-str">${t}</span>`;
+    else if (m[3]) out += `<span class="tk-num">${t}</span>`;
+    else out += (kw.has(m[0]) || m[0][0] === "@") ? `<span class="tk-kw">${t}</span>` : t;
+    last = re.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out.split("\n").map(l => `<span class="ln">${l || " "}</span>`).join("");
+}
+
+/* ---------- 状態(localStorage は失敗しても動く) ---------- */
+const KEY = "skyjudge-portfolio-v1";
+let state = { solved: {}, subs: [], theme: "" };
+try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && typeof s === "object") state = Object.assign(state, s); } catch (e) {}
+state.solved = state.solved || {}; state.subs = Array.isArray(state.subs) ? state.subs : [];
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+const score = () => PROBLEMS.reduce((s, p) => s + (state.solved[p.id] ? p.points : 0), 0);
+const allClear = () => PROBLEMS.every(p => state.solved[p.id]);
+const running = {};   // pid -> { st: [], ms: [] }
+let justStamped = "";
+
+/* ---------- テーマ ---------- */
+function applyTheme() {
+  if (state.theme) document.documentElement.setAttribute("data-theme", state.theme);
+  else document.documentElement.removeAttribute("data-theme");
+  const dark = state.theme ? state.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  $("#themeBtn").textContent = dark ? "LIGHT" : "DARK";
+}
+$("#themeBtn").addEventListener("click", () => {
+  const dark = state.theme ? state.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  state.theme = dark ? "light" : "dark"; save(); applyTheme();
+});
+
+/* ---------- 画面 ---------- */
+const route = () => { const h = location.hash.replace("#", ""); return ROUTES.includes(h) ? h : "top"; };
+const fmtTime = t => { const d = new Date(t); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+const stateOf = id => running[id] ? "run" : state.solved[id] ? "ac" : "none";
+const stateChip = id => ({ run: '<span class="chip chip--run">判定中</span>', ac: '<span class="chip chip--ac">AC</span>', none: '<span class="chip chip--none">未提出</span>' }[stateOf(id)]);
+
+function renderTabs() {
+  const r = route();
+  const item = (id, html) => `<li><a href="#${id}"${r === id ? ' aria-current="page"' : ""}>${html}</a></li>`;
+  $("#tabs").innerHTML = item("top", "トップ")
+    + PROBLEMS.map(p => item(p.id, `<span class="dot is-${stateOf(p.id)}"></span><span class="l">${p.id.toUpperCase()}</span><span class="hide-s">${esc(p.title)}</span>`)).join("")
+    + item("submissions", `提出履歴 <span class="num">${state.subs.length}</span>`) + item("standings", "順位表");
+  $("#barScore").textContent = score();
+  $("#barMax").textContent = "/ " + MAX;
+  const cur = $('#tabs a[aria-current="page"]');
+  if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function timerText() {
+  const d = Math.max(0, Date.now() - new Date(P.contestStart).getTime());
+  const days = Math.floor(d / 864e5), h = Math.floor(d / 36e5) % 24, m = Math.floor(d / 6e4) % 60, s = Math.floor(d / 1e3) % 60;
+  return `${days.toLocaleString("en-US")}<small>日</small>${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+}
+
+function clearBanner() {
+  return allClear() ? `<div class="clear" role="status"><b>ALL CLEAR</b><span>全 ${PROBLEMS.length} 問 AC、${MAX} 点。最後まで読んでいただきありがとうございます。</span></div>` : "";
+}
+
+function viewTop() {
+  return `${clearBanner()}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Portfolio / SkyJudge Contest</p>
+      <h1>Morita Kazuki <em>Career</em> Contest</h1>
+      <p class="hero__ja"><b>${esc(P.name)}</b>(@${esc(P.id)})のポートフォリオです。${esc(P.job)} / ${esc(P.jobSub)}。経歴・スキル・作品を、競技プログラミングの問題 ${PROBLEMS.length} 問として読めます。</p>
+    </div>
+    <div class="timer" aria-label="コンテスト経過時間">
+      <p class="eyebrow">Elapsed</p>
+      <p class="timer__v" id="timer">${timerText()}</p>
+      <dl><dt>開始</dt><dd>${P.joinYear}-04-01(新卒入社)</dd><dt>終了</dt><dd>未定(開催中)</dd></dl>
+    </div>
+  </section>
+  <p class="notice"><b>NOTICE</b><span>これはコンテストの形を借りたポートフォリオです。本文は提出しなくてもすべて読めます。「提出」を押すと、その章に書かれた事実がテストケースとして1件ずつ判定されます(判定は演出)。</span></p>
+  <div class="top-grid">
+    <section class="panel" aria-labelledby="h-tasks">
+      <div class="panel__h"><h2 id="h-tasks">PROBLEMS</h2><span>問題一覧 / 全 ${PROBLEMS.length} 問</span></div>
+      <div class="tw"><table class="tasks">
+        <thead><tr><th class="l"></th><th>問題</th><th class="r nw">配点</th><th class="r nw hide-s">ケース</th><th class="nw hide-s">解答例</th><th class="r nw">状態</th></tr></thead>
+        <tbody>${PROBLEMS.map(p => `<tr class="is-${stateOf(p.id)}"><td class="l"><a class="letter" href="#${p.id}" aria-label="問題 ${p.id.toUpperCase()}">${p.id.toUpperCase()}</a></td><td class="t"><a href="#${p.id}">${esc(p.title)}</a><small>${esc(p.ja)}:${esc(p.theme)}</small></td><td class="r num">${p.points}</td><td class="r num hide-s">${p.cases().length}</td><td class="nw hide-s"><span class="chip chip--lang">${esc(p.langLabel)}</span></td><td class="r">${stateChip(p.id)}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td></td><td>合計</td><td class="r num">${MAX}</td><td class="r num hide-s">${PROBLEMS.reduce((s, p) => s + p.cases().length, 0)}</td><td class="hide-s"></td><td class="r num">${score()} 点</td></tr></tfoot>
+      </table></div>
+    </section>
+    <div class="side">
+      <section class="panel" aria-labelledby="h-who">
+        <div class="panel__h"><h2 id="h-who">CONTESTANT</h2><span>参加者 1 名</span></div>
+        <div class="panel__b who">
+          <p class="who__name">${esc(P.name)}<small>${esc(P.kana)} / ${esc(P.roman)}</small></p>
+          <dl class="kv">
+            <dt>ID</dt><dd><span class="who__id">${esc(P.id)}</span></dd>
+            <dt>所属</dt><dd>${esc(P.company)}<small>${esc(P.group)}</small></dd>
+            <dt>職種</dt><dd>${esc(P.job)}<small>${esc(P.jobSub)} / 社会人 ${careerYear()} 年目</small></dd>
+            <dt>出身</dt><dd>${esc(P.school)}<small>${esc(P.club)}</small></dd>
+            <dt>RATING</dt><dd><span class="rate">最高 約${P.maxRating}</span><small>AtCoder。色は青相当</small></dd>
+            <dt>現在</dt><dd>${esc(P.now)}</dd>
+          </dl>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="h-how">
+        <div class="panel__h"><h2 id="h-how">HOW TO</h2><span>操作</span></div>
+        <div class="panel__b"><ul class="howto">
+          <li><kbd>←</kbd><kbd>→</kbd><span>前後のページへ移動</span></li>
+          <li><kbd>1</kbd>–<kbd>${PROBLEMS.length}</kbd><span>問題 A–${PROBLEMS[PROBLEMS.length - 1].id.toUpperCase()} を開く</span></li>
+          <li><kbd>0</kbd><span>トップへ戻る</span></li>
+          <li><kbd>S</kbd><span>開いている問題を提出</span></li>
+        </ul></div>
+      </section>
+    </div>
+  </div>`;
+}
+
+function judgeHTML(p) {
+  const cases = p.cases(), run = running[p.id], solved = state.solved[p.id];
+  const st = run ? run.st : cases.map(() => solved ? "ac" : "wj");
+  const done = st.filter(s => s === "ac").length;
+  const mode = run ? "run" : solved ? "ac" : "none";
+  const verdict = run ? `${done}/${cases.length}` : solved ? "AC" : "未提出";
+  return `<div class="judge" data-state="${mode}" id="judge">
+    <div class="judge__h"><h2>JUDGE</h2>${stateChip(p.id)}</div>
+    <div class="judge__b">
+      ${solved && !run ? `<span class="stamp${justStamped === p.id ? " is-new" : ""}" aria-hidden="true">AC</span>` : ""}
+      <div class="verdict"><p class="verdict__v" aria-live="polite">${verdict}</p><p class="verdict__s"><b class="num">${solved && !run ? p.points : 0}</b> / ${p.points} 点<br>${done} / ${cases.length} ケース</p></div>
+      <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="${cases.length}" aria-valuenow="${done}" aria-label="判定済みケース"><i style="width:${(done / cases.length * 100).toFixed(1)}%"></i></div>
+      <ul class="cells" aria-hidden="true">${st.map((s, i) => `<li class="is-${s}">${pad2(i + 1)}</li>`).join("")}</ul>
+      <button class="submit" id="submit" type="button"${run ? " disabled" : ""}>${run ? "JUDGING…" : solved ? "RESUBMIT" : "SUBMIT"}${run ? "" : " <kbd>S</kbd>"}</button>
+      <p class="note">判定は演出です。全ケースは最初から下の「テストケース」に表示しています。時間は判定アニメーションの実測値、サイズはケース本文の文字数です。</p>
+    </div>
+  </div>`;
+}
+function casesHTML(p) {
+  const cases = p.cases(), run = running[p.id], solved = state.solved[p.id];
+  const chip = s => ({ wj: '<span class="chip chip--wj">WJ</span>', run: '<span class="chip chip--run">実行中</span>', ac: '<span class="chip chip--ac">AC</span>', none: '<span class="chip chip--none">—</span>' }[s]);
+  return `<div class="tw panel"><table class="cases"><thead><tr><th>#</th><th>ケース(この章の事実)</th><th class="r hide-s">サイズ</th><th class="r hide-s">時間</th><th class="r">判定</th></tr></thead><tbody>${cases.map((c, i) => {
+    const s = run ? run.st[i] : solved ? "ac" : "none";
+    const ms = run ? run.ms[i] : solved && solved.ms ? solved.ms[i] : null;
+    return `<tr class="is-${s}"><td class="n">case_${pad2(i + 1)}</td><td class="c">${esc(c)}</td><td class="ms hide-s">${c.length} 字</td><td class="ms hide-s">${ms != null ? ms + " ms" : "—"}</td><td class="st">${chip(s)}</td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
+
+function viewProblem(p) {
+  const i = PROBLEMS.indexOf(p), prev = PROBLEMS[i - 1], next = PROBLEMS[i + 1];
+  return `<header class="p-head is-${stateOf(p.id)}">
+    <span class="p-letter" aria-hidden="true">${p.id.toUpperCase()}</span>
+    <div><h1>${p.id.toUpperCase()} - ${esc(p.title)}<small>${esc(p.ja)}</small></h1>
+    <p class="p-meta"><span>配点 <b>${p.points}</b> 点</span><span>ケース <b>${p.cases().length}</b> 件</span><span>解答例 <b>${esc(p.langLabel)}</b></span><span>${esc(p.theme)}</span></p></div>
+  </header>
+  <div class="p-grid">
+    <article class="statement">
+      ${p.body()}
+      <section class="sec" id="cases-sec"><h2>テストケース<small>提出すると 1 件ずつ判定されます</small></h2><div id="cases">${casesHTML(p)}</div></section>
+      <section class="sec"><h2>解答コード<small>内容を表す擬似コード。実プロダクトのコードではありません</small></h2>
+        <div class="code"><div class="code__h"><span>solution.${{ cpp: "cpp", go: "go", ts: "ts", python: "py", csharp: "cs", gdscript: "gd" }[p.lang]}</span><span>${esc(p.langLabel)}</span></div><pre><code>${highlight(p.code, p.lang)}</code></pre></div>
+      </section>
+    </article>
+    <aside class="judge-col" id="judgeCol" aria-label="ジャッジ">${judgeHTML(p)}</aside>
+  </div>
+  <nav class="pager" aria-label="前後の問題">
+    <span>${prev ? `<a href="#${prev.id}">← ${prev.id.toUpperCase()} - ${esc(prev.title)}</a>` : `<a href="#top">← コンテストトップ</a>`}</span>
+    <span>${next ? `<a href="#${next.id}">${next.id.toUpperCase()} - ${esc(next.title)} →</a>` : `<a href="#submissions">提出履歴 →</a>`}</span>
+  </nav>`;
+}
+
+function viewSubs() {
+  const rows = state.subs.slice().reverse();
+  return `<div class="pagehead"><h1>SUBMISSIONS</h1><span id="resetBox">${state.subs.length ? '<button class="ghost" id="reset" type="button">進捗をリセット</button>' : ""}</span></div>
+  <section class="panel"><div class="panel__h"><h2>提出履歴</h2><span>このブラウザでの提出 ${state.subs.length} 件</span></div>
+  ${rows.length ? `<div class="tw"><table><thead><tr><th class="nw">提出日時</th><th>問題</th><th class="nw hide-s">言語</th><th class="r nw">得点</th><th class="r nw hide-s">ケース</th><th class="r nw hide-s">判定時間</th><th class="r">結果</th></tr></thead><tbody>${rows.map(s => { const p = byId(s.p); return p ? `<tr><td class="nw num">${fmtTime(s.t)}</td><td><a href="#${p.id}">${p.id.toUpperCase()} - ${esc(p.title)}</a></td><td class="nw hide-s">${esc(p.langLabel)}</td><td class="r num">${p.points}</td><td class="r num hide-s">${s.n}/${s.n}</td><td class="r num hide-s">${s.ms} ms</td><td class="r"><span class="chip chip--ac">AC</span></td></tr>` : ""; }).join("")}</tbody></table></div>`
+    : `<p class="empty">まだ提出がありません。<a href="#a">問題 A</a> から始めてください。</p>`}
+  </section>
+  <p class="note" style="margin-top:10px">提出履歴はこのブラウザにだけ保存されます。判定時間は演出アニメーションの実測値です。</p>`;
+}
+
+function viewStand() {
+  const sc = score(), n = PROBLEMS.filter(p => state.solved[p.id]).length;
+  return `${clearBanner()}<div class="pagehead"><h1>STANDINGS</h1><span class="note">参加者 1 名。順位は変動しません。</span></div>
+  <section class="panel"><div class="panel__h"><h2>順位表</h2><span>${n} / ${PROBLEMS.length} 問 AC</span></div>
+  <div class="tw"><table class="stand"><thead><tr><th class="r">順位</th><th>参加者</th><th class="r">得点</th>${PROBLEMS.map(p => `<th style="text-align:center"><a href="#${p.id}">${p.id.toUpperCase()}</a></th>`).join("")}</tr></thead>
+  <tbody><tr><td class="r num"><b>1</b></td><td class="nw"><span class="who__id">${esc(P.id)}</span><br><span class="note">${esc(P.name)}</span></td><td class="r num"><b>${sc}</b><br><span class="note">/ ${MAX}</span></td>${PROBLEMS.map(p => { const s = state.solved[p.id]; return `<td class="sc">${s ? `<b>${p.points}</b><small>${fmtTime(s.at).slice(11, 16)}</small>` : `<span class="note">—</span>`}</td>`; }).join("")}</tr></tbody></table></div></section>
+  <p class="note" style="margin-top:10px">このコンテストの参加者は本人だけです。得点は、あなたがこのブラウザで「提出」した章の配点の合計。時刻は AC した時刻(あなたの端末の時計)です。</p>`;
+}
+
+function render(focus) {
+  const r = route(), p = byId(r);
+  $("#view").innerHTML = p ? viewProblem(p) : r === "submissions" ? viewSubs() : r === "standings" ? viewStand() : viewTop();
+  document.title = "SkyJudge 守田一喜";
+  renderTabs();
+  justStamped = "";
+  if (focus) { window.scrollTo(0, 0); $("#view").focus({ preventScroll: true }); }
+}
+function refreshJudge(pid) {
+  renderTabs();
+  if (route() !== pid) return;
+  const p = byId(pid);
+  $("#judgeCol").innerHTML = judgeHTML(p);
+  $("#cases").innerHTML = casesHTML(p);
+  justStamped = "";
+  const head = $(".p-head"); if (head) head.className = "p-head is-" + stateOf(pid);
+}
+
+/* ---------- ジャッジ(演出) ---------- */
+async function submit(pid) {
+  if (running[pid]) return;
+  const p = byId(pid), cases = p.cases();
+  const run = running[pid] = { st: cases.map(() => "wj"), ms: cases.map(() => null) };
+  const t0 = performance.now();
+  refreshJudge(pid);
+  await sleep(reduced.matches ? 0 : 420);
+  for (let i = 0; i < cases.length; i++) {
+    const c0 = performance.now();
+    run.st[i] = "run"; refreshJudge(pid);
+    await sleep(reduced.matches ? 0 : 170 + Math.min(260, cases[i].length * 6));
+    run.st[i] = "ac"; run.ms[i] = Math.max(1, Math.round(performance.now() - c0));
+  }
+  const total = Math.round(performance.now() - t0);
+  const wasClear = allClear();
+  delete running[pid];
+  state.solved[pid] = { at: Date.now(), ms: run.ms };
+  state.subs.push({ t: Date.now(), p: pid, n: cases.length, ms: total });
+  if (state.subs.length > 200) state.subs = state.subs.slice(-200);
+  save();
+  justStamped = pid;
+  refreshJudge(pid);
+  if (!wasClear && allClear()) { await sleep(reduced.matches ? 0 : 500); celebrate(); }
+}
+
+function celebrate() {
+  if (route() !== "standings") location.hash = "#standings"; else render(true);
+  if (reduced.matches) return;
+  const cv = $("#confetti"), ctx = cv.getContext("2d"), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.hidden = false; cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const colors = ["--accent", "--ac", "--run", "--rate-blue", "--accent-soft"].map(v => css.getPropertyValue(v).trim());
+  const parts = Array.from({ length: 170 }, (_, i) => ({
+    x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * .6, vx: (Math.random() - .5) * 2.4, vy: 2 + Math.random() * 3.6,
+    w: 6 + Math.random() * 7, h: 3 + Math.random() * 5, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, c: colors[i % colors.length]
+  }));
+  const start = performance.now();
+  (function frame(now) {
+    const t = now - start;
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.globalAlpha = t > 3600 ? Math.max(0, 1 - (t - 3600) / 900) : 1;
+    for (const q of parts) {
+      q.x += q.vx + Math.sin((t + q.r * 500) / 400) * .6; q.y += q.vy; q.r += q.vr;
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.r); ctx.fillStyle = q.c; ctx.fillRect(-q.w / 2, -q.h / 2, q.w, q.h); ctx.restore();
+    }
+    if (t < 4500) requestAnimationFrame(frame); else { ctx.setTransform(1, 0, 0, 1, 0, 0); cv.hidden = true; }
+  })(start);
+}
+
+/* ---------- イベント ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.id === "submit") { const r = route(); if (byId(r)) submit(r); }
+  else if (t.id === "reset") { $("#resetBox").innerHTML = '<span class="note">提出履歴と得点を消します。</span> <button class="ghost" id="resetYes" type="button">リセットする</button> <button class="ghost" id="resetNo" type="button">やめる</button>'; $("#resetNo").focus(); }
+  else if (t.id === "resetYes") { state.solved = {}; state.subs = []; save(); render(false); }
+  else if (t.id === "resetNo") { render(false); }
+});
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  const i = ROUTES.indexOf(route());
+  if (e.key === "ArrowRight" && i < ROUTES.length - 1) location.hash = "#" + ROUTES[i + 1];
+  else if (e.key === "ArrowLeft" && i > 0) location.hash = "#" + ROUTES[i - 1];
+  else if (e.key === "0") location.hash = "#top";
+  else if (/^[1-9]$/.test(e.key) && PROBLEMS[+e.key - 1]) location.hash = "#" + PROBLEMS[+e.key - 1].id;
+  else if ((e.key === "s" || e.key === "S") && byId(route())) submit(route());
+});
+window.addEventListener("hashchange", () => render(true));
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+setInterval(() => { const t = $("#timer"); if (t) t.innerHTML = timerText(); }, 1000);
+
+applyTheme();
+render(false);
+</script>
+</body>
+</html>
